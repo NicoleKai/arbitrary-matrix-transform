@@ -104,6 +104,10 @@ fn transform_ui(
         ui.add(common_slider(&mut ui_state.y, "y"));
         ui.add(common_slider(&mut ui_state.z, "z"));
         ui.add(common_slider(&mut ui_state.w, "w"));
+        ui.add(common_slider(&mut ui_state.xt, "xt"));
+        ui.add(common_slider(&mut ui_state.yt, "yt"));
+        ui.add(common_slider(&mut ui_state.zt, "zt"));
+        ui.add(common_slider(&mut ui_state.wt, "wt"));
     });
     // Iterate over all cubes. In this case, we only have one, but this boilerplate is still considered best practice
     for (mut transform, _cube) in &mut cubes {
