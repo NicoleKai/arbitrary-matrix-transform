@@ -114,5 +114,7 @@ fn transform_ui(
         // The actual quaternion transform occurs here
         let unnormalized_quat = Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w);
         transform.rotation = unnormalized_quat.normalize();
+        let unnormalized_dualquat = Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt);
+        transform.translation = unnormalized_dualquat.normalize();
     }
 }
