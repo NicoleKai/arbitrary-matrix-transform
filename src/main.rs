@@ -12,7 +12,13 @@ struct UiState {
     y: f32,
     z: f32,
     w: f32,
+    xt: f32,
+    yt: f32,
+    zt: f32,
+    wt: f32,
 }
+
+
 
 
 
