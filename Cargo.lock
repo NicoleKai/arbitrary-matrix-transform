@@ -2799,14 +2799,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "45f10e75d83c7aec79a6aa46f897075890e156b105eebe51cfa0abce51af025f"
 
 [[package]]
-name = "quat-rotation"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy_egui",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2897,6 +2889,14 @@ name = "renderdoc-sys"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "216080ab382b992234dda86873c18d4c48358f5cfcb70fd693d7f6f2131b628b"
+
+[[package]]
+name = "robotics-kinematics-quaternion-demo"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_egui",
+]
 
 [[package]]
 name = "rodio"
