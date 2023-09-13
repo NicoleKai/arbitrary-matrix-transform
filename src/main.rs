@@ -116,7 +116,7 @@ fn transform_ui(
         transform.rotation =
             Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize();
         transform.translation = Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt)
-            .normalize()
+            // .normalize()
             .xyz();
     }
 }
