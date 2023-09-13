@@ -18,10 +18,6 @@ struct UiState {
     wt: f32,
 }
 
-
-
-
-
 // A dummy struct used for Query-ing the cube entity, for altering its transform.
 #[derive(Component)]
 struct RotateFlag;
@@ -108,13 +104,19 @@ fn transform_ui(
         ui.add(common_slider(&mut ui_state.yt, "yt"));
         ui.add(common_slider(&mut ui_state.zt, "zt"));
         ui.add(common_slider(&mut ui_state.wt, "wt"));
-    });
+    }); // Calculate the Dual part of the Dual Quaternion
+        //let dual_part_real = -0.5 * (ui_state.x * ui_state.xt + ui_state.y * ui_state.yt + ui_state.z * ui_state.zt);
+        //let dual_part_i = 0.5 * (ui_state.xt * normalized_rotation_quat.w + ui_state.zt * normalized_rotation_quat.y - ui_state.yt * normalized_rotation_quat.z);
+        //let dual_part_j = 0.5 * (-ui_state.zt * normalized_rotation_quat.x + ui_state.xt * normalized_rotation_quat.z + ui_state.yt * normalized_rotation_quat.w);
+        //let dual_part_k = 0.5 * (ui_state.yt * normalized_rotation_quat.x - ui_state.xt * normalized_rotation_quat.y + ui_state.zt * normalized_rotation_quat.w);
+
     // Iterate over all cubes. In this case, we only have one, but this boilerplate is still considered best practice
     for (mut transform, _cube) in &mut cubes {
         // The actual quaternion transform occurs here
-        let unnormalized_quat = Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w);
-        transform.rotation = unnormalized_quat.normalize();
-        let unnormalized_dualquat = Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt);
-        transform.translation = unnormalized_dualquat.normalize();
+        transform.rotation =
+            Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize();
+        transform.translation = Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt)
+            // .normalize()
+            .xyz();
     }
 }
