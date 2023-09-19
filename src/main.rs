@@ -49,10 +49,14 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    let mut cylinder_base = shape::Cylinder::default();
+    cylinder_base.radius = 1.;
+    cylinder_base.height = 10.;
     // Spawn a cube, with color settings so that it's easier to view
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube::new(1.0))),
+            mesh: meshes.add(Mesh::from(cylinder_base)),
+            // mesh: meshes.add(Mesh::from(shape::Cube::new(1.0))),
             material: materials.add(Color::WHITE.into()),
             transform: Transform::from_translation(Vec3::ZERO),
             ..default()
@@ -115,8 +119,7 @@ fn transform_ui(
         // The actual quaternion transform occurs here
         transform.rotation =
             Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize();
-        transform.translation = Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt)
-            // .normalize()
-            .xyz();
+        transform.translation =
+            Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt).xyz();
     }
 }
