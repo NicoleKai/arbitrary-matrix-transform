@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{pbr::DirectionalLightShadowMap, prelude::*};
 use bevy_egui::{
     egui::{self, Slider},
     EguiContexts,
@@ -34,6 +34,7 @@ fn main() {
             }),
             ..Default::default()
         }))
+        .insert_resource(DirectionalLightShadowMap { size: 4096 })
         .add_plugins(bevy_egui::EguiPlugin)
         // Systems (functions that are called at regular intervals)
         .add_systems(Startup, setup)
@@ -48,21 +49,22 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
 ) {
-    let mut cylinder_base = shape::Cylinder::default();
-    cylinder_base.radius = 1.;
-    cylinder_base.height = 10.;
+    // let mut cylinder_base = shape::Cylinder::default();
+    // cylinder_base.radius = 1.;
+    // cylinder_base.height = 10.;
     // Spawn a cube, with color settings so that it's easier to view
-    commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(cylinder_base)),
-            // mesh: meshes.add(Mesh::from(shape::Cube::new(1.0))),
-            material: materials.add(Color::WHITE.into()),
-            transform: Transform::from_translation(Vec3::ZERO),
-            ..default()
-        },
-        RotateFlag {},
-    ));
+    // commands.spawn((
+    //     PbrBundle {
+    //         mesh: meshes.add(Mesh::from(cylinder_base)),
+    //         // mesh: meshes.add(Mesh::from(shape::Cube::new(1.0))),
+    //         material: materials.add(Color::WHITE.into()),
+    //         transform: Transform::from_translation(Vec3::ZERO),
+    //         ..default()
+    //     },
+    //     RotateFlag {},
+    // ));
 
     // Camera is necessary to render anything
     commands.spawn(Camera3dBundle {
@@ -75,6 +77,14 @@ fn setup(
         transform: Transform::from_translation(Vec3::ONE * 3.0),
         ..default()
     });
+    commands.spawn((
+        SceneBundle {
+            scene: asset_server.load("Foxy.gltf#Scene0"),
+            transform: Transform::from_scale(Vec3::splat(10.)),
+            ..default()
+        },
+        RotateFlag {},
+    ));
 }
 
 // This is where the transform happens
