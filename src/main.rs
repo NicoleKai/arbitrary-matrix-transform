@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::prelude::{shape::Cylinder, system_adapter::new, *};
 use bevy_egui::{
     egui::{self, Slider},
     EguiContexts,
@@ -43,22 +43,46 @@ fn main() {
         .run(); // Event loop etc occurs here
 }
 
+trait NewCylinder {
+    fn new(radius: f32, height: f32, resolution: u32, segments: u32) -> shape::Cylinder;
+    fn new_typical(radius: f32, height: f32) -> shape::Cylinder;
+}
+
+impl NewCylinder for Cylinder {
+    fn new(radius: f32, height: f32, resolution: u32, segments: u32) -> shape::Cylinder {
+        shape::Cylinder {
+            radius,
+            height,
+            resolution,
+            segments,
+        }
+    }
+    fn new_typical(radius: f32, height: f32) -> shape::Cylinder {
+        shape::Cylinder {
+            radius,
+            height,
+            resolution: 64,
+            segments: 1,
+        }
+    }
+}
+
 // Setup basic facilities
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let mut cylinder_base = shape::Cylinder::default();
-    cylinder_base.radius = 1.;
-    cylinder_base.height = 10.;
-    // Spawn a cube, with color settings so that it's easier to view
+    let material = materials.add(Color::WHITE.into());
+    let base_cylinder = meshes.add(Mesh::from(Cylinder::new_typical(1.5, 1.)));
+    let middle_cylinder = meshes.add(Mesh::from(Cylinder::new_typical(0.5, 2.)));
+    let arm = meshes.add(Mesh::from(Box::new_typical(0.5, 2.)));
+    let transform = Transform::from_translation(Vec3::ZERO);
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Mesh::from(cylinder_base)),
-            // mesh: meshes.add(Mesh::from(shape::Cube::new(1.0))),
-            material: materials.add(Color::WHITE.into()),
-            transform: Transform::from_translation(Vec3::ZERO),
+            mesh: base_cylinder,
+            material,
+            transform,
             ..default()
         },
         RotateFlag {},
