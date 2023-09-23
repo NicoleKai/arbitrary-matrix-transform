@@ -19,8 +19,18 @@ struct UiState {
 }
 
 // A dummy struct used for Query-ing the cube entity, for altering its transform.
-#[derive(Component)]
-struct RotateFlag;
+#[derive(Component, Default, Debug)]
+struct Transformable {
+    base_transform: Option<Transform>,
+}
+
+impl From<Transform> for Transformable {
+    fn from(transform: Transform) -> Self {
+        Self {
+            base_transform: Some(transform),
+        }
+    }
+}
 
 // Main entrypoint
 fn main() {
@@ -43,27 +53,33 @@ fn main() {
         .run(); // Event loop etc occurs here
 }
 
-trait NewCylinder {
-    fn new(radius: f32, height: f32, resolution: u32, segments: u32) -> shape::Cylinder;
-    fn new_typical(radius: f32, height: f32) -> shape::Cylinder;
+trait NewMesh {
+    fn new_box(x: f32, y: f32, z: f32) -> Mesh;
+    fn new_typical_cylinder(radius: f32, height: f32) -> Mesh;
+    fn new_cylinder(radius: f32, height: f32, resolution: u32, segments: u32) -> Mesh;
 }
 
-impl NewCylinder for Cylinder {
-    fn new(radius: f32, height: f32, resolution: u32, segments: u32) -> shape::Cylinder {
-        shape::Cylinder {
-            radius,
-            height,
-            resolution,
-            segments,
-        }
+impl NewMesh for Mesh {
+    fn new_box(x: f32, y: f32, z: f32) -> Mesh {
+        Mesh::from(shape::Box::new(x, y, z))
     }
-    fn new_typical(radius: f32, height: f32) -> shape::Cylinder {
-        shape::Cylinder {
+
+    fn new_typical_cylinder(radius: f32, height: f32) -> Mesh {
+        Mesh::from(shape::Cylinder {
             radius,
             height,
             resolution: 64,
             segments: 1,
-        }
+        })
+    }
+
+    fn new_cylinder(radius: f32, height: f32, resolution: u32, segments: u32) -> Mesh {
+        Mesh::from(shape::Cylinder {
+            radius,
+            height,
+            resolution,
+            segments,
+        })
     }
 }
 
@@ -74,18 +90,37 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let material = materials.add(Color::WHITE.into());
-    let base_cylinder = meshes.add(Mesh::from(Cylinder::new_typical(1.5, 1.)));
-    let middle_cylinder = meshes.add(Mesh::from(Cylinder::new_typical(0.5, 2.)));
-    let arm = meshes.add(Mesh::from(Box::new_typical(0.5, 2.)));
+    let base_cylinder = meshes.add(Mesh::new_typical_cylinder(1.5, 1.));
+    let middle_cylinder = meshes.add(Mesh::new_typical_cylinder(0.5, 2.));
+    let arm = meshes.add(Mesh::new_box(1.0, 0.9, 4.0));
     let transform = Transform::from_translation(Vec3::ZERO);
+    let arm_transform = Transform::from_xyz(0.0, 0.0, -2.0);
     commands.spawn((
         PbrBundle {
             mesh: base_cylinder,
-            material,
+            material: material.clone(),
             transform,
             ..default()
         },
-        RotateFlag {},
+        Transformable::default(),
+    ));
+    commands.spawn((
+        PbrBundle {
+            mesh: middle_cylinder,
+            material: material.clone(),
+            transform,
+            ..default()
+        },
+        Transformable::default(),
+    ));
+    commands.spawn((
+        PbrBundle {
+            mesh: arm,
+            material: material.clone(),
+            transform: arm_transform,
+            ..default()
+        },
+        Transformable::from(arm_transform),
     ));
 
     // Camera is necessary to render anything
@@ -103,7 +138,7 @@ fn setup(
 
 // This is where the transform happens
 fn transform_ui(
-    mut cubes: Query<(&mut Transform, &RotateFlag)>,
+    mut transformables: Query<(&mut Transform, &mut Transformable)>,
     mut ui_state: ResMut<UiState>,
     mut ctx: EguiContexts,
 ) {
@@ -139,11 +174,22 @@ fn transform_ui(
         //let dual_part_k = 0.5 * (ui_state.yt * normalized_rotation_quat.x - ui_state.xt * normalized_rotation_quat.y + ui_state.zt * normalized_rotation_quat.w);
 
     // Iterate over all cubes. In this case, we only have one, but this boilerplate is still considered best practice
-    for (mut transform, _cube) in &mut cubes {
+    for (mut transform, transformable) in &mut transformables {
         // The actual quaternion transform occurs here
-        transform.rotation =
-            Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize();
-        transform.translation =
-            Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt).xyz();
+        if let Some(base_transform) = transformable.base_transform {
+            let new_transform = Transform {
+                translation: Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt)
+                    .xyz(),
+                rotation: Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w)
+                    .normalize(),
+                scale: Vec3::ONE,
+            };
+            *transform = new_transform.mul_transform(base_transform);
+        } else {
+            transform.rotation =
+                Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize();
+            transform.translation =
+                Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt).xyz();
+        }
     }
 }
