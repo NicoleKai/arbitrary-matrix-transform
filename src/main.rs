@@ -21,13 +21,13 @@ struct UiState {
 // A dummy struct used for Query-ing the cube entity, for altering its transform.
 #[derive(Component, Default, Debug)]
 struct Transformable {
-    base_transform: Option<Transform>,
+    node_transform: Option<Transform>,
 }
 
 impl From<Transform> for Transformable {
     fn from(transform: Transform) -> Self {
         Self {
-            base_transform: Some(transform),
+            node_transform: Some(transform),
         }
     }
 }
@@ -176,15 +176,15 @@ fn transform_ui(
     // Iterate over all cubes. In this case, we only have one, but this boilerplate is still considered best practice
     for (mut transform, transformable) in &mut transformables {
         // The actual quaternion transform occurs here
-        if let Some(base_transform) = transformable.base_transform {
-            let new_transform = Transform {
+        if let Some(node_transform) = transformable.node_transform {
+            let base_transform = Transform {
                 translation: Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt)
                     .xyz(),
                 rotation: Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w)
                     .normalize(),
                 scale: Vec3::ONE,
             };
-            *transform = new_transform.mul_transform(base_transform);
+            *transform = base_transform.mul_transform(node_transform);
         } else {
             transform.rotation =
                 Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize();
