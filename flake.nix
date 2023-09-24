@@ -11,27 +11,32 @@
         pkgs = (import nixpkgs) {
           inherit system;
         };
+        lib = pkgs.lib;
+
+        buildInputs = with pkgs; [
+          udev alsa-lib vulkan-loader
+          xorg.libX11 xorg.libXcursor xorg.libXi xorg.libXrandr # To use the x11 feature
+          libxkbcommon wayland # To use the wayland feature
+        ];
+
+
+        commonEnvironment = {
+          nativeBuildInputs = with pkgs; [
+            pkg-config
+          ];
+          LD_LIBRARY_PATH = lib.makeLibraryPath buildInputs;
+          inherit buildInputs;
+        };
 
         naersk' = pkgs.callPackage naersk { };
       in
       {
         # For `nix build` & `nix run`:
-        defaultPackage = naersk'.buildPackage rec {
-          nativeBuildInputs = with pkgs; [
-            pkg-config
-          ];
-          buildInputs = with pkgs; [
-            udev alsa-lib vulkan-loader
-            xorg.libX11 xorg.libXcursor xorg.libXi xorg.libXrandr # To use the x11 feature
-            libxkbcommon wayland # To use the wayland feature
-          ];
-          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
-
+        defaultPackage = naersk'.buildPackage (lib.recursiveUpdate commonEnvironment {
           src = ./.;
-          
-        };
+        });
 
-        devShell = pkgs.mkShell {
+        devShell = pkgs.mkShell (lib.recursiveUpdate commonEnvironment {
           # Defaults to Bash for some reason???
           shellHook = ''
             exec $SHELL
@@ -52,7 +57,7 @@
                        -c commiter.email=$email "$@"
             '')            
            ];
-        };
+        });
       }
     );
 }
