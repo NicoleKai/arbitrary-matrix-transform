@@ -18,17 +18,14 @@ struct UiState {
     wt: f32,
 }
 
-// A dummy struct used for Query-ing the cube entity, for altering its transform.
 #[derive(Component, Default, Debug)]
 struct Transformable {
-    node_transform: Option<Transform>,
+    node_transform: Transform,
 }
 
 impl From<Transform> for Transformable {
-    fn from(transform: Transform) -> Self {
-        Self {
-            node_transform: Some(transform),
-        }
+    fn from(node_transform: Transform) -> Self {
+        Self { node_transform }
     }
 }
 
@@ -39,7 +36,7 @@ fn main() {
         // Bevy plugins
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Quaternion transform demo".to_string(),
+                title: "Quaternion Forward Kinematics Demo".to_string(),
                 ..Default::default()
             }),
             ..Default::default()
@@ -90,32 +87,35 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let material = materials.add(Color::WHITE.into());
-    let base_cylinder = meshes.add(Mesh::new_typical_cylinder(1.5, 1.));
-    let middle_cylinder = meshes.add(Mesh::new_typical_cylinder(0.5, 2.));
-    let arm = meshes.add(Mesh::new_box(1.0, 0.9, 4.0));
+    let mesh_base = meshes.add(Mesh::new_typical_cylinder(1.5, 1.));
+    let mesh_middle = meshes.add(Mesh::new_typical_cylinder(0.5, 2.));
+    let mesh_arm = meshes.add(Mesh::new_box(1.0, 0.9, 4.0));
     let transform = Transform::from_translation(Vec3::ZERO);
     let arm_transform = Transform::from_xyz(0.0, 0.0, -2.0);
+
     commands.spawn((
         PbrBundle {
-            mesh: base_cylinder,
+            mesh: mesh_base,
             material: material.clone(),
             transform,
             ..default()
         },
         Transformable::default(),
     ));
+
     commands.spawn((
         PbrBundle {
-            mesh: middle_cylinder,
+            mesh: mesh_middle,
             material: material.clone(),
             transform,
             ..default()
         },
         Transformable::default(),
     ));
+
     commands.spawn((
         PbrBundle {
-            mesh: arm,
+            mesh: mesh_arm,
             material: material.clone(),
             transform: arm_transform,
             ..default()
@@ -176,20 +176,11 @@ fn transform_ui(
     // Iterate over all cubes. In this case, we only have one, but this boilerplate is still considered best practice
     for (mut transform, transformable) in &mut transformables {
         // The actual quaternion transform occurs here
-        if let Some(node_transform) = transformable.node_transform {
-            let base_transform = Transform {
-                translation: Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt)
-                    .xyz(),
-                rotation: Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w)
-                    .normalize(),
-                scale: Vec3::ONE,
-            };
-            *transform = base_transform.mul_transform(node_transform);
-        } else {
-            transform.rotation =
-                Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize();
-            transform.translation =
-                Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt).xyz();
-        }
+        let base_transform = Transform {
+            translation: Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt).xyz(),
+            rotation: Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize(),
+            scale: Vec3::ONE,
+        };
+        *transform = base_transform.mul_transform(transformable.node_transform);
     }
 }
