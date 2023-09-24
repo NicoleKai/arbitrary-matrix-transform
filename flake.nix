@@ -34,7 +34,7 @@
         devShell = pkgs.mkShell {
           # Defaults to Bash for some reason???
           shellHook = ''
-            $SHELL
+            exec $SHELL
           '';
           nativeBuildInputs = with pkgs; [
             rustc
