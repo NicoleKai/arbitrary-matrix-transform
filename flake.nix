@@ -36,7 +36,11 @@
           shellHook = ''
             $SHELL
           '';
-          nativeBuildInputs = with pkgs; [ rustc cargo bacon
+          nativeBuildInputs = with pkgs; [
+            rustc
+            cargo
+            rust-analyzer
+            bacon
             (pkgs.writeShellScriptBin "git" ''
               email=nicolekohm102@gmail.com
               name=NicoleKai
