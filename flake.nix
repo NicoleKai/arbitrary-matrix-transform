@@ -23,13 +23,6 @@
 
         devShell = pkgs.mkShell environment // {
         };
-        # For `nix develop`:
-        # devShell = pkgs.mkShell {
-          # nativeBuildInputs = with pkgs; [ rustc cargo pkg-config alsaLib udev xorg.libX11 wayland ];
-          # PKG_CONFIG_PATH = ''${pkgs.alsaLib}/lib/pkgconfig:${pkgs.udev}/lib/pkgconfig:\
-          # ${pkgs.xorg.libX11}/lib/pkgconfig:${pkgs.wayland}/lib/pkgconfig'';
-          # buildInputs = (import ./environment.nix { inherit pkgs; });
-        # };
       }
     );
 }
