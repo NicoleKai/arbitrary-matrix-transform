@@ -181,6 +181,6 @@ fn transform_ui(
             rotation: Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize(),
             scale: Vec3::ONE,
         };
-        *transform = base_transform.mul_transform(transformable.node_transform);
+        *transform = base_transform * transformable.node_transform;
     }
 }
