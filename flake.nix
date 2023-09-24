@@ -13,15 +13,26 @@
         };
 
         naersk' = pkgs.callPackage naersk { };
-        environment = (import ./environment.nix { inherit pkgs; });
       in
-      rec {
+      {
         # For `nix build` & `nix run`:
-        defaultPackage = naersk'.buildPackage environment // {
+        defaultPackage = naersk'.buildPackage rec {
+          nativeBuildInputs = with pkgs; [
+            pkg-config
+          ];
+          buildInputs = with pkgs; [
+            udev alsa-lib vulkan-loader
+            xorg.libX11 xorg.libXcursor xorg.libXi xorg.libXrandr # To use the x11 feature
+            libxkbcommon wayland # To use the wayland feature
+          ];
+          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
+
           src = ./.;
+          
         };
 
-        devShell = pkgs.mkShell environment // {
+        devShell = pkgs.mkShell {
+            nativeBuildInputs = with pkgs; [ rustc cargo ];
         };
       }
     );
