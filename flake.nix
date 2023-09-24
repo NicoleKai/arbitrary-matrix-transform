@@ -32,18 +32,22 @@
         };
 
         devShell = pkgs.mkShell {
-            nativeBuildInputs = with pkgs; [ rustc cargo bacon
-              (pkgs.writeShellScriptBin "git" ''
-                email=nicolekohm102@gmail.com
-                name=NicoleKai
-                exec ${pkgs.git}/bin/git -c user.name=$name \
-                         -c user.email=$email \
-                         -c author.name=$name \
-                         -c author.email=$email \
-                         -c commiter.name=$name \
-                         -c commiter.email=$email "$@"
-              '')            
-             ];
+          # Defaults to Bash for some reason???
+          shellHook = ''
+            $SHELL
+          '';
+          nativeBuildInputs = with pkgs; [ rustc cargo bacon
+            (pkgs.writeShellScriptBin "git" ''
+              email=nicolekohm102@gmail.com
+              name=NicoleKai
+              exec ${pkgs.git}/bin/git -c user.name=$name \
+                       -c user.email=$email \
+                       -c author.name=$name \
+                       -c author.email=$email \
+                       -c commiter.name=$name \
+                       -c commiter.email=$email "$@"
+            '')            
+           ];
         };
       }
     );
