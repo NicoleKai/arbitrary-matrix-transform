@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 bevy = "0.11.2"
 bevy_egui = "0.21.0"
+static-math = "0.2.3"

@@ -1,8 +1,15 @@
-use bevy::prelude::{shape::Cylinder, system_adapter::new, *};
+use std::ops::Add;
+
+use bevy::prelude::{
+    shape::{Cylinder, Quad},
+    system_adapter::new,
+    *,
+};
 use bevy_egui::{
     egui::{self, Slider},
     EguiContexts,
 };
+use static_math;
 
 // This struct stores the values for the sliders, so that they persist between frames
 // As EGUI is immediate mode, we have to maintain the state of the GUI ourselves
@@ -22,12 +29,48 @@ struct UiState {
 struct Transformable {
     node_transform: Transform,
 }
-
 impl From<Transform> for Transformable {
     fn from(node_transform: Transform) -> Self {
         Self { node_transform }
     }
 }
+
+pub trait InternalFrom<T>: Sized {
+    fn ext_from(value: T) -> Self;
+}
+
+impl InternalFrom<Quat> for static_math::Quaternion<f32> {
+    fn ext_from(quat: Quat) -> Self {
+        static_math::Quaternion::new_from(quat.w, quat.x, quat.y, quat.z)
+    }
+}
+
+impl InternalFrom<static_math::Quaternion<f32>> for Quat {
+    fn ext_from(quaternion: static_math::Quaternion<f32>) -> Self {
+        let real: f32 = quaternion.real();
+        let imaginary: static_math::V3<f32> = quaternion.imag();
+        Quat::from_xyzw(imaginary[0], imaginary[1], imaginary[2], real)
+    }
+}
+
+// trait BevyQuatToStaticQuaternion {
+//     fn as_static_quat(&mut self) -> static_math::Quaternion<f32>;
+// }
+
+// impl BevyQuatToStaticQuaternion for Quat {
+//     fn as_static_quat(&mut self) -> static_math::Quaternion<f32> {
+//         static_math::Quaternion::new_from(self.w, self.x, self.y, self.z)
+//     }
+// }
+// trait StaticQuaternionToBevyQuat {
+//     fn as_bevy_quat(&mut self) -> static_math::Quaternion<f32>;
+// }
+
+// impl BevyQuatToStaticQuaternion for Quat {
+//     fn as_static_quat(&mut self) -> static_math::Quaternion<f32> {
+//         static_math::Quaternion::new_from(self.w, self.x, self.y, self.z)
+//     }
+// }
 
 // Main entrypoint
 fn main() {
@@ -167,20 +210,20 @@ fn transform_ui(
         ui.add(common_slider(&mut ui_state.yt, "yt"));
         ui.add(common_slider(&mut ui_state.zt, "zt"));
         ui.add(common_slider(&mut ui_state.wt, "wt"));
-    }); // Calculate the Dual part of the Dual Quaternion
-        //let dual_part_real = -0.5 * (ui_state.x * ui_state.xt + ui_state.y * ui_state.yt + ui_state.z * ui_state.zt);
-        //let dual_part_i = 0.5 * (ui_state.xt * normalized_rotation_quat.w + ui_state.zt * normalized_rotation_quat.y - ui_state.yt * normalized_rotation_quat.z);
-        //let dual_part_j = 0.5 * (-ui_state.zt * normalized_rotation_quat.x + ui_state.xt * normalized_rotation_quat.z + ui_state.yt * normalized_rotation_quat.w);
-        //let dual_part_k = 0.5 * (ui_state.yt * normalized_rotation_quat.x - ui_state.xt * normalized_rotation_quat.y + ui_state.zt * normalized_rotation_quat.w);
+    });
 
-    // Iterate over all cubes. In this case, we only have one, but this boilerplate is still considered best practice
+    // Iterate over all transformables
     for (mut transform, transformable) in &mut transformables {
-        // The actual quaternion transform occurs here
+        let translation =
+            static_math::Quaternion::new_from(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt);
+        let rotation =
+            static_math::Quaternion::new_from(ui_state.x, ui_state.y, ui_state.z, ui_state.w);
         let base_transform = Transform {
-            translation: Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt).xyz(),
-            rotation: Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize(),
+            translation: Quat::ext_from(translation).xyz(),
+            rotation: Quat::ext_from(rotation).normalize(),
             scale: Vec3::ONE,
         };
+        // The actual quaternion transform occurs here
         *transform = base_transform * transformable.node_transform;
     }
 }
