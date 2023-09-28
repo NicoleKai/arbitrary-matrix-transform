@@ -401,7 +401,7 @@ fn transform_ui(
         };
 
         // Finally, we are building the arm transform. Each arm is offset from the previous by a fixed amount, calculated from its ID
-        // TODO: replace with per-segment transform.
+        // TODO: replace with per-segment transform, with dedicated segment Component struct.
         let arm_trans = match transformable.id {
             0 => Transform::default(),
             1.. => Transform::from_translation(Vec3::new(0.0, 0.0, transformable.id as f32 * 5.0)),
