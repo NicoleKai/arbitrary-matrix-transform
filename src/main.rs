@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, Mul};
 
 use bevy::prelude::{
     shape::{Cylinder, Quad},
@@ -15,18 +15,11 @@ use static_math::{self, DualQuaternion, Quaternion};
 // As EGUI is immediate mode, we have to maintain the state of the GUI ourselves
 #[derive(Resource, Default, Clone)]
 struct UiState {
-    // x: f32,
-    // y: f32,
-    // z: f32,
-    // w: f32,
-    // xt: f32,
-    // yt: f32,
-    // zt: f32,
-    // wt: f32,
     slider: f32,
     pitch: f32,
     yaw: f32,
     roll: f32,
+    rigid_body_comps: Vec3,
 }
 
 #[derive(Resource, Default, Clone)]
@@ -165,7 +158,6 @@ fn setup(
     let mesh_arm = meshes.add(Mesh::new_box(1.0, 0.9, 4.0));
     let transform = Transform::from_translation(Vec3::ZERO);
     let arm_transform = Transform::from_xyz(0.0, 0.0, -2.0);
-Vec3::X
     let q_real = Quaternion::new_from(0., 0., 0., 0.);
     let q_dual = Quaternion::new_from(0., 0., 0., 0.);
     q_real * q_dual;
@@ -215,6 +207,20 @@ Vec3::X
     });
 }
 
+trait TensorProdVec3 {
+    fn tensor_prod(&self, rhs: Self) -> Mat3;
+}
+
+impl TensorProdVec3 for Vec3 {
+    fn tensor_prod(&self, rhs: Self) -> Mat3 {
+        Mat3 {
+            x_axis: self.x * rhs,
+            y_axis: self.y * rhs,
+            z_axis: self.z * rhs,
+        }
+    }
+}
+
 // This is where the transform happens
 fn transform_ui(
     mut transformables: Query<(&mut Transform, &mut Transformable)>,
@@ -243,6 +249,18 @@ fn transform_ui(
         ui.add(common_slider(&mut ui_state.pitch, "pitch"));
         ui.add(common_slider(&mut ui_state.yaw, "yaw"));
         ui.add(common_slider(&mut ui_state.roll, "roll"));
+        ui.add(common_slider(
+            &mut ui_state.rigid_body_comps.x,
+            "Rigid Body X",
+        ));
+        ui.add(common_slider(
+            &mut ui_state.rigid_body_comps.y,
+            "Rigid Body Y",
+        ));
+        ui.add(common_slider(
+            &mut ui_state.rigid_body_comps.z,
+            "Rigid Body Z",
+        ));
         // ui.add(common_slider(&mut ui_state.x, "x"));
         // ui.add(common_slider(&mut ui_state.y, "y"));
         // ui.add(common_slider(&mut ui_state.z, "z"));
@@ -254,7 +272,7 @@ fn transform_ui(
     });
 
     let v = Vec3::new(9.1, 1.1, 8.);
-    dbg!(v.normalize());
+    // dbg!(v.normalize());
     let theta = ui_state.slider;
     // let i_hat = Vec3::new(1., 0., 0.);
     // let j_hat = Vec3::new(0., 1., 0.);
@@ -264,11 +282,16 @@ fn transform_ui(
     // let u_z = ui_state.roll;
     // // Vec3::new(i_hat.mul_all(u_x), j_hat.mul_all(u_y), k_hat.mul_all(u_z));
 
-    
     let u_hat = Vec3::new(ui_state.pitch, ui_state.yaw, ui_state.roll).normalize();
     let u_arrow = u_hat * theta;
     let u_mapped = u_arrow / 2.0;
     let rot_around_u_hat = u_mapped.exp();
+
+    let res = (0.5 * ui_state.rigid_body_comps).tensor_prod(rot_around_u_hat);
+    // let x_a_to_b = x_rigid_body.mag;
+    // let y_a_to_b = y_rigid_body.mag;
+    // let z_a_to_b = z_rigid_body.mag;
+
     // Iterate over all transformables
     for (mut transform, transformable) in &mut transformables {
         // let translation =
@@ -277,13 +300,14 @@ fn transform_ui(
         //     static_math::Quaternion::new_from(ui_state.x, ui_state.y, ui_state.z, ui_state.w);
         // // let a =
 
-        let first_joint = *joint_trans.dual_quat.get(0).unwrap();
-        let dt = DualQuaternion::new_from_rotation(&Quaternion::<f32>::from_euler_angles(
-            ui_state.slider,
-            0.,
-            0.,
-        ));
-        let (rot, trans) = dt.to_rotation_translation();
+        // let base_transform = res.x_axis
+        // let first_joint = *joint_trans.dual_quat.get(0).unwrap();
+        // let dt = DualQuaternion::new_from_rotation(&Quaternion::<f32>::from_euler_angles(
+        //     ui_state.slider,
+        //     0.,
+        //     0.,
+        // ));
+        // let (rot, trans) = dt.to_rotation_translation();
         // rotation.exp()
 
         // let base_transform = Transform {
