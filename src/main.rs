@@ -18,10 +18,7 @@ use static_math::{self, DualQuaternion, Quaternion};
 // As EGUI is immediate mode, we have to maintain the state of the GUI ourselves
 #[derive(Resource, Default, Clone)]
 struct UiState {
-    slider: f32,
-    // pitch: f32,
-    // yaw: f32,
-    // roll: f32,
+    theta: f32,
     rot: Vec3,
     rigid_body_comps: Vec3,
 }
@@ -249,7 +246,7 @@ fn transform_ui(
         // Slider width style
         ui.style_mut().spacing.slider_width = 450.0;
         // Sliders are added here, passed mutable access to the variables storing their states
-        ui.add(common_slider(&mut ui_state.slider, "slider"));
+        ui.add(common_slider(&mut ui_state.theta, "theta"));
         ui.add(common_slider(&mut ui_state.rot.x, "pitch axis"));
         ui.add(common_slider(&mut ui_state.rot.y, "yaw axis"));
         ui.add(common_slider(&mut ui_state.rot.z, "roll axis"));
@@ -265,82 +262,36 @@ fn transform_ui(
             &mut ui_state.rigid_body_comps.z,
             "Rigid Body Z",
         ));
-        // ui.add(common_slider(&mut ui_state.x, "x"));
-        // ui.add(common_slider(&mut ui_state.y, "y"));
-        // ui.add(common_slider(&mut ui_state.z, "z"));
-        // ui.add(common_slider(&mut ui_state.w, "w"));
-        // ui.add(common_slider(&mut ui_state.xt, "xt"));
-        // ui.add(common_slider(&mut ui_state.yt, "yt"));
-        // ui.add(common_slider(&mut ui_state.zt, "zt"));
-        // ui.add(common_slider(&mut ui_state.wt, "wt"));
     });
 
     let v = Vec3::new(9.1, 1.1, 8.);
-    // dbg!(v.normalize());
-    let theta = ui_state.slider;
-    // let i_hat = Vec3::new(1., 0., 0.);
-    // let j_hat = Vec3::new(0., 1., 0.);
-    // let k_hat = Vec3::new(0., 0., 1.);
-    // let u_x = ui_state.pitch;
-    // let u_y = ui_state.yaw;
-    // let u_z = ui_state.roll;
-    // let v = Vec3::new(, , )
-    // // Vec3::new(i_hat.mul_all(u_x), j_hat.mul_all(u_y), k_hat.mul_all(u_z));
-
-    // // let u_hat = Vec3::new(ui_state.pitch, ui_state.yaw, ui_state.roll).normalize();
-    // let u_arrow = u_hat * theta;
-    // let u_mapped = u_arrow / 2.0;
-    // let rot_around_u_hat = u_mapped.exp();
-
-    // let res = (0.5 * ui_state.rigid_body_comps).tensor_prod(rot_around_u_hat);
-    // let theta_u_x = (theta * u_x) / 2.;
+    let theta = ui_state.theta;
 
     let real_quat = ((theta * ui_state.rot) / 2.0).exp();
     let real_quat_w = (-theta / 2.).exp();
     let imag_quat = (0.5 * ui_state.rigid_body_comps) * (theta / 2.0).exp();
 
-    DualQuaternion::new_from_array([
+    let dq = DualQuaternion::new_from_array([
+        // real quat refers to the roll/pitch/yaw of the axis.
         real_quat.x,
         real_quat.y,
         real_quat.z,
+        // real quat w is how big of a turn after you get the axis to the new location.
         real_quat_w,
+        // This is translation.
         imag_quat.x,
         imag_quat.y,
         imag_quat.z,
     ]);
-    // let x_a_to_b = x_rigid_body.mag;
-    // let y_a_to_b = y_rigid_body.mag;
-    // let z_a_to_b = z_rigid_body.mag;
-    // let a = Quat::from_xyzw(0., 0., 0., 0.);
+
     // Iterate over all transformables
     for (mut transform, transformable) in &mut transformables {
-        // let translation =
-        //     static_math::Quaternion::new_from(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt);
-        // translation.
-        // let rotation =
-        //     static_math::Quaternion::new_from(ui_state.x, ui_state.y, ui_state.z, ui_state.w);
-        // // let a =
+        let base_transform = Transform {
+            rotation: Quat::ext_from(dq.real()).normalize(),
+            translation: Quat::ext_from(dq.dual()).xyz(),
+            scale: Vec3::ONE,
+        };
 
-        // let base_transform = res.x_axis
-        // let first_joint = *joint_trans.dual_quat.get(0).unwrap();
-        // let dt = DualQuaternion::new_from_rotation(&Quaternion::<f32>::from_euler_angles(
-        //     ui_state.slider,
-        //     0.,
-        //     0.,
-        // ));
-        // let (rot, trans) = dt.to_rotation_translation();
-        // rotation.exp()
-
-        // let base_transform = Transform {
-        //     translation: Quat::ext_from(translation).xyz(),
-        //     rotation: Quat::ext_from(rotation).normalize(),
-        //     scale: Vec3::ONE,
-        // };
-        // The actual quaternion transform occurs here
-        // *transform =
-        // let base_transform = Transform {
-        // Transform::from_matrix()
-        // Mat3::ext_from(rot))
-        // transformable.node_transform;
+        *transform = base_transform * transformable.node_transform;
     }
 }
