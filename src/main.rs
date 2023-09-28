@@ -59,6 +59,8 @@ impl Transformable {
     }
 }
 
+/// A trait for custom `from` function calls against externally defined types
+/// We need this because Rust does not allow us to implement traits from other crates against types from other crates.
 pub trait InternalFrom<T>: Sized {
     fn ext_from(value: T) -> Self;
 }
