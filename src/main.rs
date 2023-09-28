@@ -243,12 +243,17 @@ impl TensorProdVec3 for Vec3 {
     }
 }
 
-trait SinVec3 {
+/// Trigonometric functions implemented for Bevy's Vec3 type
+/// TODO: make exhaustive, move into its own module
+trait TrigVec3 {
     fn sin(&self) -> Vec3;
+    fn asin(&self) -> Vec3;
     fn cos(&self) -> Vec3;
+    fn acos(&self) -> Vec3;
+    fn tan(&self) -> Vec3;
 }
 
-impl SinVec3 for Vec3 {
+impl TrigVec3 for Vec3 {
     fn sin(&self) -> Vec3 {
         Vec3 {
             x: self.x.sin(),
@@ -256,11 +261,36 @@ impl SinVec3 for Vec3 {
             z: self.z.sin(),
         }
     }
+
     fn cos(&self) -> Vec3 {
         Vec3 {
             x: self.x.cos(),
             y: self.y.cos(),
             z: self.z.cos(),
+        }
+    }
+
+    fn asin(&self) -> Vec3 {
+        Vec3 {
+            x: self.x.asin(),
+            y: self.y.asin(),
+            z: self.z.asin(),
+        }
+    }
+
+    fn acos(&self) -> Vec3 {
+        Vec3 {
+            x: self.x.acos(),
+            y: self.y.acos(),
+            z: self.z.acos(),
+        }
+    }
+
+    fn tan(&self) -> Vec3 {
+        Vec3 {
+            x: self.x.tan(),
+            y: self.y.tan(),
+            z: self.z.tan(),
         }
     }
 }
@@ -305,7 +335,7 @@ fn transform_ui(
         }
     };
     // The floating EGUI window
-    egui::Window::new("Quaternion control").show(ctx.ctx_mut(), |ui| {
+    egui::Window::new("Dual quaternion control").show(ctx.ctx_mut(), |ui| {
         // Note that the code inside this block is part of a closure, similar to lambdas in Python.
 
         // Slider width style
