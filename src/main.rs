@@ -9,18 +9,24 @@ use bevy::prelude::{
     *,
 };
 use bevy_egui::{
-    egui::{self, Slider},
+    egui::{self, Slider, Ui},
     EguiContexts,
 };
 use static_math::{self, DualQuaternion, Quaternion};
+
+#[derive(Default, Clone)]
+struct DualQuatCtrls {
+    theta: f32,
+    rot: Vec3,
+    rigid_body_comps: Vec3,
+}
 
 // This struct stores the values for the sliders, so that they persist between frames
 // As EGUI is immediate mode, we have to maintain the state of the GUI ourselves
 #[derive(Resource, Default, Clone)]
 struct UiState {
-    theta: f32,
-    rot: Vec3,
-    rigid_body_comps: Vec3,
+    dual_quat1: DualQuatCtrls,
+    dual_quat2: DualQuatCtrls,
 }
 
 #[derive(Resource, Default, Clone)]
@@ -31,10 +37,22 @@ struct JointTrans {
 #[derive(Component, Default, Debug)]
 struct Transformable {
     node_transform: Transform,
+    id: usize,
 }
+
+impl Transformable {
+    fn with_id(mut self, id: usize) -> Self {
+        self.id = id;
+        self
+    }
+}
+
 impl From<Transform> for Transformable {
     fn from(node_transform: Transform) -> Self {
-        Self { node_transform }
+        Self {
+            node_transform,
+            id: 0,
+        }
     }
 }
 
@@ -153,47 +171,47 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut joint_trans: ResMut<JointTrans>,
 ) {
-    let material = materials.add(Color::WHITE.into());
-    let mesh_base = meshes.add(Mesh::new_typical_cylinder(1.5, 1.));
-    let mesh_middle = meshes.add(Mesh::new_typical_cylinder(0.5, 2.));
-    let mesh_arm = meshes.add(Mesh::new_box(1.0, 0.9, 4.0));
-    let transform = Transform::from_translation(Vec3::ZERO);
-    let arm_transform = Transform::from_xyz(0.0, 0.0, -2.0);
-    let q_real = Quaternion::new_from(0., 0., 0., 0.);
-    let q_dual = Quaternion::new_from(0., 0., 0., 0.);
-    q_real * q_dual;
-    joint_trans
-        .dual_quat
-        .push(DualQuaternion::new(q_real, q_dual));
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh_base,
-            material: material.clone(),
-            transform,
-            ..default()
-        },
-        Transformable::default(),
-    ));
+    for i in 0..2 {
+        let material = materials.add(Color::WHITE.into());
+        let mesh_base = meshes.add(Mesh::new_typical_cylinder(1.5, 1.));
+        let mesh_middle = meshes.add(Mesh::new_typical_cylinder(0.5, 2.));
+        let mesh_arm = meshes.add(Mesh::new_box(1.0, 0.9, 4.0));
+        let transform = Transform::from_translation(Vec3::ZERO);
+        let arm_transform = Transform::from_xyz(0.0, 0.0, -2.0);
+        let mesh_base = meshes.add(Mesh::new_typical_cylinder(1.5, 1.));
+        let mesh_middle = meshes.add(Mesh::new_typical_cylinder(0.5, 2.));
+        let mesh_arm = meshes.add(Mesh::new_box(1.0, 0.9, 4.0));
 
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh_middle,
-            material: material.clone(),
-            transform,
-            ..default()
-        },
-        Transformable::default(),
-    ));
+        commands.spawn((
+            PbrBundle {
+                mesh: mesh_base,
+                material: material.clone(),
+                transform,
+                ..default()
+            },
+            Transformable::default().with_id(i),
+        ));
 
-    commands.spawn((
-        PbrBundle {
-            mesh: mesh_arm,
-            material: material.clone(),
-            transform: arm_transform,
-            ..default()
-        },
-        Transformable::from(arm_transform),
-    ));
+        commands.spawn((
+            PbrBundle {
+                mesh: mesh_middle,
+                material: material.clone(),
+                transform,
+                ..default()
+            },
+            Transformable::default().with_id(i),
+        ));
+
+        commands.spawn((
+            PbrBundle {
+                mesh: mesh_arm,
+                material: material.clone(),
+                transform: arm_transform,
+                ..default()
+            },
+            Transformable::from(arm_transform).with_id(i),
+        ));
+    }
 
     // Camera is necessary to render anything
     commands.spawn(Camera3dBundle {
@@ -239,6 +257,24 @@ fn transform_ui(
             .step_by(0.01)
     }
 
+    let dual_quat_sliders = |ui: &mut Ui, dq_ctrls: &mut DualQuatCtrls| {
+        ui.add(common_slider(&mut dq_ctrls.theta, "theta"));
+        ui.add(common_slider(&mut dq_ctrls.rot.x, "pitch axis"));
+        ui.add(common_slider(&mut dq_ctrls.rot.y, "yaw axis"));
+        ui.add(common_slider(&mut dq_ctrls.rot.z, "roll axis"));
+        ui.add(common_slider(
+            &mut dq_ctrls.rigid_body_comps.x,
+            "Rigid Body X",
+        ));
+        ui.add(common_slider(
+            &mut dq_ctrls.rigid_body_comps.y,
+            "Rigid Body Y",
+        ));
+        ui.add(common_slider(
+            &mut dq_ctrls.rigid_body_comps.z,
+            "Rigid Body Z",
+        ));
+    };
     // The floating EGUI window
     egui::Window::new("Quaternion control").show(ctx.ctx_mut(), |ui| {
         // Note that the code inside this block is part of a closure, similar to lambdas in Python.
@@ -246,46 +282,45 @@ fn transform_ui(
         // Slider width style
         ui.style_mut().spacing.slider_width = 450.0;
         // Sliders are added here, passed mutable access to the variables storing their states
-        ui.add(common_slider(&mut ui_state.theta, "theta"));
-        ui.add(common_slider(&mut ui_state.rot.x, "pitch axis"));
-        ui.add(common_slider(&mut ui_state.rot.y, "yaw axis"));
-        ui.add(common_slider(&mut ui_state.rot.z, "roll axis"));
-        ui.add(common_slider(
-            &mut ui_state.rigid_body_comps.x,
-            "Rigid Body X",
-        ));
-        ui.add(common_slider(
-            &mut ui_state.rigid_body_comps.y,
-            "Rigid Body Y",
-        ));
-        ui.add(common_slider(
-            &mut ui_state.rigid_body_comps.z,
-            "Rigid Body Z",
-        ));
+        dual_quat_sliders(ui, &mut ui_state.dual_quat1);
+        dual_quat_sliders(ui, &mut ui_state.dual_quat2);
     });
 
-    let v = Vec3::new(9.1, 1.1, 8.);
-    let theta = ui_state.theta;
+    let dq_from_ctrls = |ctrls: &DualQuatCtrls| {
+        let theta = ctrls.theta;
 
-    let real_quat = ((theta * ui_state.rot) / 2.0).exp();
-    let real_quat_w = (-theta / 2.).exp();
-    let imag_quat = (0.5 * ui_state.rigid_body_comps) * (theta / 2.0).exp();
+        let real_quat = ((theta * ctrls.rot) / 2.0).exp();
+        let real_quat_w = (-theta / 2.).exp();
+        let imag_quat = (0.5 * ctrls.rigid_body_comps) * (theta / 2.0).exp();
 
-    let dq = DualQuaternion::new_from_array([
-        // real quat refers to the roll/pitch/yaw of the axis.
-        real_quat.x,
-        real_quat.y,
-        real_quat.z,
-        // real quat w is how big of a turn after you get the axis to the new location.
-        real_quat_w,
-        // This is translation.
-        imag_quat.x,
-        imag_quat.y,
-        imag_quat.z,
-    ]);
+        DualQuaternion::new_from_array([
+            // real quat refers to the roll/pitch/yaw of the axis.
+            real_quat.x,
+            real_quat.y,
+            real_quat.z,
+            // real quat w is how big of a turn after you get the axis to the new location.
+            real_quat_w,
+            // This is translation.
+            imag_quat.x,
+            imag_quat.y,
+            imag_quat.z,
+        ])
+    };
 
+    let dq1 = dq_from_ctrls(&ui_state.dual_quat1);
+    let dq2 = dq_from_ctrls(&ui_state.dual_quat2);
+
+    let base_dual_quat = DualQuaternion::<f32>::one();
     // Iterate over all transformables
+
     for (mut transform, transformable) in &mut transformables {
+        let dq = match transformable.id {
+            0 => base_dual_quat * dq1,
+            1 => base_dual_quat * dq1 * dq2,
+            _ => {
+                panic!("wrong id gfy");
+            }
+        };
         let base_transform = Transform {
             rotation: Quat::ext_from(dq.real()).normalize(),
             translation: Quat::ext_from(dq.dual()).xyz(),
