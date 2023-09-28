@@ -73,6 +73,15 @@ impl InternalFrom<static_math::matrix3x3::M33<f32>> for Mat3 {
     }
 }
 
+trait Vec3Ext {
+    fn mul_all(&self, rhs: f32) -> Vec3;
+}
+
+impl Vec3Ext for Vec3 {
+    fn mul_all(&self, rhs: f32) -> Vec3 {
+        Vec3::new(self.x * rhs, self.y * rhs, self.z * rhs)
+    }
+}
 // impl InternalFrom<static_math::matrix3x3::M33<f32>> for Mat3 {
 //     fn ext_from(static_mat3: static_math::matrix3x3::M33<f32>) -> Self {
 //         let s = static_mat3.get_rows();
@@ -156,7 +165,7 @@ fn setup(
     let mesh_arm = meshes.add(Mesh::new_box(1.0, 0.9, 4.0));
     let transform = Transform::from_translation(Vec3::ZERO);
     let arm_transform = Transform::from_xyz(0.0, 0.0, -2.0);
-
+Vec3::X
     let q_real = Quaternion::new_from(0., 0., 0., 0.);
     let q_dual = Quaternion::new_from(0., 0., 0., 0.);
     q_real * q_dual;
@@ -244,10 +253,22 @@ fn transform_ui(
         // ui.add(common_slider(&mut ui_state.wt, "wt"));
     });
 
-    let i_hat = Vec3::new(1., 0., 0.);
-    let j_hat = Vec3::new(0., 1., 0.);
-    let k_hat = Vec3::new(0., 0., 1.);
-    let u_x = 
+    let v = Vec3::new(9.1, 1.1, 8.);
+    dbg!(v.normalize());
+    let theta = ui_state.slider;
+    // let i_hat = Vec3::new(1., 0., 0.);
+    // let j_hat = Vec3::new(0., 1., 0.);
+    // let k_hat = Vec3::new(0., 0., 1.);
+    // let u_x = ui_state.pitch;
+    // let u_y = ui_state.yaw;
+    // let u_z = ui_state.roll;
+    // // Vec3::new(i_hat.mul_all(u_x), j_hat.mul_all(u_y), k_hat.mul_all(u_z));
+
+    
+    let u_hat = Vec3::new(ui_state.pitch, ui_state.yaw, ui_state.roll).normalize();
+    let u_arrow = u_hat * theta;
+    let u_mapped = u_arrow / 2.0;
+    let rot_around_u_hat = u_mapped.exp();
     // Iterate over all transformables
     for (mut transform, transformable) in &mut transformables {
         // let translation =
@@ -273,7 +294,7 @@ fn transform_ui(
         // The actual quaternion transform occurs here
         // *transform =
         // let base_transform = Transform {
-        Transform::from_matrix()
+        // Transform::from_matrix()
         // Mat3::ext_from(rot))
         // transformable.node_transform;
     }
