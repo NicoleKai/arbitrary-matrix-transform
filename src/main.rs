@@ -270,7 +270,7 @@ fn transform_ui(
     // A wrapper function for creating a slider with common settings,
     // e.g. range, clamp, step_by, etc
     fn common_slider<'a>(value: &'a mut f32, text: &str) -> Slider<'a> {
-        Slider::new(value, -10.0..=10.0)
+        Slider::new(value, -100.0..=100.0)
             .text(text)
             .clamp_to_range(false)
             .drag_value_speed(0.01)
@@ -359,10 +359,10 @@ fn transform_ui(
                 // Transform::from_rotation(Quat::from_rotation_x(2.0 * PI))
                 //     * Transform::from_rotation(Quat::from_rotation_y(PI * 2.0))
                 // * Transform::from_rotation(Quat::from_rotation_z(PI))
-                // * Transform::from_translation(Vec3::new(0.0, 0.0, 3.0))
+                * Transform::from_translation(Vec3::new(0.0, 0.0, 6.0))
             }
             _ => panic!("poop"),
         };
-        *transform = arm_trans * base_transform * transformable.node_transform;
+        *transform = base_transform * arm_trans * transformable.node_transform;
     }
 }
