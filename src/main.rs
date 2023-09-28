@@ -62,7 +62,7 @@ pub trait InternalFrom<T>: Sized {
 
 impl InternalFrom<Quat> for static_math::Quaternion<f32> {
     fn ext_from(quat: Quat) -> Self {
-        static_math::Quaternion::new_from(quat.w, quat.x, quat.y, quat.z)
+        static_math::Quaternion::new_from(quat.x, quat.y, quat.z, quat.w)
     }
 }
 
@@ -93,7 +93,7 @@ impl InternalFrom<static_math::Quaternion<f32>> for Quat {
 //     fn mul_all(&self, rhs: f32) -> Vec3 {
 //         Vec3::new(self.x * rhs, self.y * rhs, self.z * rhs)
 //     }
-}
+// }
 // impl InternalFrom<static_math::matrix3x3::M33<f32>> for Mat3 {
 //     fn ext_from(static_mat3: static_math::matrix3x3::M33<f32>) -> Self {
 //         let s = static_mat3.get_rows();
@@ -173,9 +173,6 @@ fn setup(
 ) {
     for i in 0..2 {
         let material = materials.add(Color::WHITE.into());
-        let mesh_base = meshes.add(Mesh::new_typical_cylinder(1.5, 1.));
-        let mesh_middle = meshes.add(Mesh::new_typical_cylinder(0.5, 2.));
-        let mesh_arm = meshes.add(Mesh::new_box(1.0, 0.9, 4.0));
         let transform = Transform::from_translation(Vec3::ZERO);
         let arm_transform = Transform::from_xyz(0.0, 0.0, -2.0);
         let mesh_base = meshes.add(Mesh::new_typical_cylinder(1.5, 1.));
@@ -274,6 +271,11 @@ fn transform_ui(
             &mut dq_ctrls.rigid_body_comps.z,
             "Rigid Body Z",
         ));
+        if ui.button("Zero all").clicked() {
+            dq_ctrls.theta = 0.;
+            dq_ctrls.rot = Vec3::ZERO;
+            dq_ctrls.rigid_body_comps = Vec3::ZERO;
+        }
     };
     // The floating EGUI window
     egui::Window::new("Quaternion control").show(ctx.ctx_mut(), |ui| {
