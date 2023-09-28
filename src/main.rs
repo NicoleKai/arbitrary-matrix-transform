@@ -6,12 +6,16 @@ use bevy_egui::{
 use static_math::{self, DualQuaternion};
 
 #[derive(Clone)]
+/// Contains quat control inputs for slider parameters
+/// There is an instance of one of these for every segment
 struct DualQuatCtrls {
     theta: f32,
     rot: Vec3,
     rigid_body_comps: Vec3,
 }
 
+/// Default state of DualQuatCtrls
+/// Each internal value is default, with the exception of theta, because of math shenanigans
 impl Default for DualQuatCtrls {
     fn default() -> Self {
         Self {
@@ -29,11 +33,14 @@ impl Default for DualQuatCtrls {
 // As EGUI is immediate mode, we have to maintain the state of the GUI ourselves
 #[derive(Resource, Default, Clone)]
 struct UiState {
+    // TODO: replace with Vec of DualQuatCtrls so that code is more scalable
     dual_quat1: DualQuatCtrls,
     dual_quat2: DualQuatCtrls,
     dual_quat3: DualQuatCtrls,
 }
 
+/// Transformable components have `id` and `node_transform`
+/// `id` tracks which component it is, and `node_transform` helps us e.g. offset specific meshes in the mesh group
 #[derive(Component, Default, Debug)]
 struct Transformable {
     node_transform: Transform,
@@ -41,17 +48,13 @@ struct Transformable {
 }
 
 impl Transformable {
-    fn with_id(mut self, id: usize) -> Self {
-        self.id = id;
-        self
+    fn new(id: usize, node_transform: Transform) -> Self {
+        Self { node_transform, id }
     }
-}
-
-impl From<Transform> for Transformable {
-    fn from(node_transform: Transform) -> Self {
+    fn new_default(id: usize) -> Self {
         Self {
-            node_transform,
-            id: 0,
+            node_transform: Transform::default(),
+            id,
         }
     }
 }
@@ -133,12 +136,14 @@ fn main() {
         .run(); // Event loop etc occurs here
 }
 
+/// Some helper implementations for quickly making meshes of basic objects
 trait NewMesh {
     fn new_box(x: f32, y: f32, z: f32) -> Mesh;
     fn new_typical_cylinder(radius: f32, height: f32) -> Mesh;
     fn new_cylinder(radius: f32, height: f32, resolution: u32, segments: u32) -> Mesh;
 }
 
+/// Some helper implementations for quickly making meshes of basic objects
 impl NewMesh for Mesh {
     fn new_box(x: f32, y: f32, z: f32) -> Mesh {
         Mesh::from(shape::Box::new(x, y, z))
@@ -187,7 +192,7 @@ fn setup(
                 transform,
                 ..default()
             },
-            Transformable::default().with_id(i),
+            Transformable::new_default(i),
         ));
 
         commands.spawn((
@@ -197,7 +202,7 @@ fn setup(
                 transform,
                 ..default()
             },
-            Transformable::default().with_id(i),
+            Transformable::new_default(i),
         ));
 
         commands.spawn((
@@ -207,7 +212,7 @@ fn setup(
                 transform: arm_transform,
                 ..default()
             },
-            Transformable::from(arm_transform).with_id(i),
+            Transformable::new(i, arm_transform),
         ));
     }
 
