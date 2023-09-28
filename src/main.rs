@@ -74,25 +74,25 @@ impl InternalFrom<static_math::Quaternion<f32>> for Quat {
     }
 }
 
-impl InternalFrom<static_math::matrix3x3::M33<f32>> for Mat3 {
-    fn ext_from(static_mat3: static_math::matrix3x3::M33<f32>) -> Self {
-        let s = static_mat3.get_rows();
-        let arr: [f32; 9] = [
-            s[0][0], s[0][1], s[0][2], s[1][0], s[1][1], s[1][2], s[2][0], s[2][1], s[2][2],
-        ];
-        // TODO: check if we need to transpose
-        Self::from_cols_array(&arr)
-    }
-}
+// impl InternalFrom<static_math::matrix3x3::M33<f32>> for Mat3 {
+//     fn ext_from(static_mat3: static_math::matrix3x3::M33<f32>) -> Self {
+//         let s = static_mat3.get_rows();
+//         let arr: [f32; 9] = [
+//             s[0][0], s[0][1], s[0][2], s[1][0], s[1][1], s[1][2], s[2][0], s[2][1], s[2][2],
+//         ];
+//         // TODO: check if we need to transpose
+//         Self::from_cols_array(&arr)
+//     }
+// }
 
-trait Vec3Ext {
-    fn mul_all(&self, rhs: f32) -> Vec3;
-}
+// trait Vec3Ext {
+//     fn mul_all(&self, rhs: f32) -> Vec3;
+// }
 
-impl Vec3Ext for Vec3 {
-    fn mul_all(&self, rhs: f32) -> Vec3 {
-        Vec3::new(self.x * rhs, self.y * rhs, self.z * rhs)
-    }
+// impl Vec3Ext for Vec3 {
+//     fn mul_all(&self, rhs: f32) -> Vec3 {
+//         Vec3::new(self.x * rhs, self.y * rhs, self.z * rhs)
+//     }
 }
 // impl InternalFrom<static_math::matrix3x3::M33<f32>> for Mat3 {
 //     fn ext_from(static_mat3: static_math::matrix3x3::M33<f32>) -> Self {
@@ -105,12 +105,12 @@ impl Vec3Ext for Vec3 {
 //     }
 // }
 
-impl InternalFrom<Mat3> for static_math::matrix3x3::M33<f32> {
-    fn ext_from(m: Mat3) -> Self {
-        let m = m.to_cols_array_2d();
-        Self::new([m[0], m[1], m[2]])
-    }
-}
+// impl InternalFrom<Mat3> for static_math::matrix3x3::M33<f32> {
+//     fn ext_from(m: Mat3) -> Self {
+//         let m = m.to_cols_array_2d();
+//         Self::new([m[0], m[1], m[2]])
+//     }
+// }
 
 // Main entrypoint
 fn main() {
