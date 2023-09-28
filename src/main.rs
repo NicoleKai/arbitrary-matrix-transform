@@ -238,6 +238,28 @@ impl TensorProdVec3 for Vec3 {
     }
 }
 
+trait SinVec3 {
+    fn sin(&self) -> Vec3;
+    fn cos(&self) -> Vec3;
+}
+
+impl SinVec3 for Vec3 {
+    fn sin(&self) -> Vec3 {
+        Vec3 {
+            x: self.x.sin(),
+            y: self.y.sin(),
+            z: self.z.sin(),
+        }
+    }
+    fn cos(&self) -> Vec3 {
+        Vec3 {
+            x: self.x.cos(),
+            y: self.y.cos(),
+            z: self.z.cos(),
+        }
+    }
+}
+
 // This is where the transform happens
 fn transform_ui(
     mut transformables: Query<(&mut Transform, &mut Transformable)>,
@@ -292,9 +314,9 @@ fn transform_ui(
     let dq_from_ctrls = |ctrls: &DualQuatCtrls| {
         let theta = ctrls.theta;
 
-        let real_quat = ((theta * ctrls.rot) / 2.0).exp();
-        let real_quat_w = (-theta / 2.).exp();
-        let imag_quat = (0.5 * ctrls.rigid_body_comps) * (theta / 2.0).exp();
+        let real_quat = ((theta * ctrls.rot) / 2.0).sin();
+        let real_quat_w = (theta / 2.).cos();
+        let imag_quat = (0.5 * ctrls.rigid_body_comps) * (theta / 2.0).cos();
 
         DualQuaternion::new_from_array([
             // real quat refers to the roll/pitch/yaw of the axis.
