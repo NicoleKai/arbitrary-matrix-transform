@@ -15,11 +15,21 @@ use bevy_egui::{
 };
 use static_math::{self, DualQuaternion, Quaternion};
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 struct DualQuatCtrls {
     theta: f32,
     rot: Vec3,
     rigid_body_comps: Vec3,
+}
+
+impl Default for DualQuatCtrls {
+    fn default() -> Self {
+        Self {
+            theta: 0.001,
+            rot: Vec3::default(),
+            rigid_body_comps: Vec3::default(),
+        }
+    }
 }
 
 // This struct stores the values for the sliders, so that they persist between frames
@@ -28,6 +38,7 @@ struct DualQuatCtrls {
 struct UiState {
     dual_quat1: DualQuatCtrls,
     dual_quat2: DualQuatCtrls,
+    dual_quat3: DualQuatCtrls,
 }
 
 // #[derive(Resource, Default, Clone)]
@@ -172,9 +183,9 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     // mut joint_trans: ResMut<JointTrans>,
 ) {
-    for i in 0..2 {
-        let material = materials.add(Color::WHITE.into());
-        let transform = Transform::from_translation(Vec3::ZERO);
+    let material = materials.add(Color::WHITE.into());
+    let transform = Transform::from_translation(Vec3::ZERO);
+    for i in 0..3 {
         let arm_transform = Transform::from_xyz(0.0, 0.0, -2.0);
         let mesh_base = meshes.add(Mesh::new_typical_cylinder(1.5, 1.));
         let mesh_middle = meshes.add(Mesh::new_typical_cylinder(0.5, 2.));
@@ -270,11 +281,11 @@ fn transform_ui(
     // A wrapper function for creating a slider with common settings,
     // e.g. range, clamp, step_by, etc
     fn common_slider<'a>(value: &'a mut f32, text: &str) -> Slider<'a> {
-        Slider::new(value, -100.0..=100.0)
+        Slider::new(value, -10000.0..=10000.0)
             .text(text)
             .clamp_to_range(false)
-            .drag_value_speed(0.01)
-            .step_by(0.01)
+            .drag_value_speed(0.001)
+            .step_by(0.001)
     }
 
     let dual_quat_sliders = |ui: &mut Ui, dq_ctrls: &mut DualQuatCtrls| {
@@ -294,10 +305,8 @@ fn transform_ui(
             &mut dq_ctrls.rigid_body_comps.z,
             "Rigid Body Z",
         ));
-        if ui.button("Zero all").clicked() {
-            dq_ctrls.theta = 0.;
-            dq_ctrls.rot = Vec3::ZERO;
-            dq_ctrls.rigid_body_comps = Vec3::ZERO;
+        if ui.button("Reset").clicked() {
+            *dq_ctrls = DualQuatCtrls::default();
         }
     };
     // The floating EGUI window
@@ -309,6 +318,7 @@ fn transform_ui(
         // Sliders are added here, passed mutable access to the variables storing their states
         dual_quat_sliders(ui, &mut ui_state.dual_quat1);
         dual_quat_sliders(ui, &mut ui_state.dual_quat2);
+        dual_quat_sliders(ui, &mut ui_state.dual_quat3);
     });
 
     let dq_from_ctrls = |ctrls: &DualQuatCtrls| {
@@ -334,6 +344,7 @@ fn transform_ui(
 
     let dq1 = dq_from_ctrls(&ui_state.dual_quat1);
     let dq2 = dq_from_ctrls(&ui_state.dual_quat2);
+    let dq3 = dq_from_ctrls(&ui_state.dual_quat3);
 
     let base_dual_quat = DualQuaternion::<f32>::one();
     // Iterate over all transformables
@@ -342,6 +353,7 @@ fn transform_ui(
         let dq = match transformable.id {
             0 => base_dual_quat * dq1,
             1 => base_dual_quat * dq1 * dq2,
+            2 => base_dual_quat * dq1 * dq2 * dq3,
             _ => {
                 panic!("wrong id gfy");
             }
@@ -354,14 +366,8 @@ fn transform_ui(
 
         let arm_trans = match transformable.id {
             0 => Transform::default(),
-            1 => {
-                Transform::default()
-                // Transform::from_rotation(Quat::from_rotation_x(2.0 * PI))
-                //     * Transform::from_rotation(Quat::from_rotation_y(PI * 2.0))
-                // * Transform::from_rotation(Quat::from_rotation_z(PI))
-                * Transform::from_translation(Vec3::new(0.0, 0.0, 6.0))
-            }
-            _ => panic!("poop"),
+            1.. => Transform::from_translation(Vec3::new(0.0, 0.0, transformable.id as f32 * 5.0)),
+            _ => panic!("crabs hatet his one neet trik"),
         };
         *transform = base_transform * arm_trans * transformable.node_transform;
     }
