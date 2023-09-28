@@ -1,4 +1,5 @@
 use std::{
+    f32::consts::PI,
     ops::{Add, Mul},
     sync::Arc,
 };
@@ -29,10 +30,10 @@ struct UiState {
     dual_quat2: DualQuatCtrls,
 }
 
-#[derive(Resource, Default, Clone)]
-struct JointTrans {
-    dual_quat: Vec<DualQuaternion<f32>>,
-}
+// #[derive(Resource, Default, Clone)]
+// struct JointTrans {
+//     dual_quat: Vec<DualQuaternion<f32>>,
+// }
 
 #[derive(Component, Default, Debug)]
 struct Transformable {
@@ -130,7 +131,7 @@ fn main() {
         .add_systems(Update, transform_ui)
         // Resources (live data that can be accessed from any system)
         .init_resource::<UiState>()
-        .init_resource::<JointTrans>()
+        // .init_resource::<JointTrans>()
         .run(); // Event loop etc occurs here
 }
 
@@ -169,7 +170,7 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut joint_trans: ResMut<JointTrans>,
+    // mut joint_trans: ResMut<JointTrans>,
 ) {
     for i in 0..2 {
         let material = materials.add(Color::WHITE.into());
@@ -241,7 +242,7 @@ impl TensorProdVec3 for Vec3 {
 fn transform_ui(
     mut transformables: Query<(&mut Transform, &mut Transformable)>,
     mut ui_state: ResMut<UiState>,
-    mut joint_trans: ResMut<JointTrans>,
+    // mut joint_trans: ResMut<JointTrans>,
     mut ctx: EguiContexts,
 ) {
     // A wrapper function for creating a slider with common settings,
@@ -329,6 +330,17 @@ fn transform_ui(
             scale: Vec3::ONE,
         };
 
-        *transform = base_transform * transformable.node_transform;
+        let arm_trans = match transformable.id {
+            0 => Transform::default(),
+            1 => {
+                Transform::default()
+                // Transform::from_rotation(Quat::from_rotation_x(2.0 * PI))
+                //     * Transform::from_rotation(Quat::from_rotation_y(PI * 2.0))
+                // * Transform::from_rotation(Quat::from_rotation_z(PI))
+                // * Transform::from_translation(Vec3::new(0.0, 0.0, 3.0))
+            }
+            _ => panic!("poop"),
+        };
+        *transform = arm_trans * base_transform * transformable.node_transform;
     }
 }
