@@ -1,19 +1,9 @@
-use std::{
-    f32::consts::PI,
-    ops::{Add, Mul},
-    sync::Arc,
-};
-
-use bevy::prelude::{
-    shape::{Cylinder, Quad},
-    system_adapter::new,
-    *,
-};
+use bevy::prelude::*;
 use bevy_egui::{
     egui::{self, Slider, Ui},
     EguiContexts,
 };
-use static_math::{self, DualQuaternion, Quaternion};
+use static_math::{self, DualQuaternion};
 
 #[derive(Clone)]
 struct DualQuatCtrls {
@@ -25,6 +15,9 @@ struct DualQuatCtrls {
 impl Default for DualQuatCtrls {
     fn default() -> Self {
         Self {
+            // Theta causes a weird singularity where the other transforms seem to depend on it for transformation magnitude,
+            // but it also transforms the segment position across other axes.
+            // Setting it to 0.001 and magnifying inputs seemed like the best way to get the demo usable for now
             theta: 0.001,
             rot: Vec3::default(),
             rigid_body_comps: Vec3::default(),
@@ -40,11 +33,6 @@ struct UiState {
     dual_quat2: DualQuatCtrls,
     dual_quat3: DualQuatCtrls,
 }
-
-// #[derive(Resource, Default, Clone)]
-// struct JointTrans {
-//     dual_quat: Vec<DualQuaternion<f32>>,
-// }
 
 #[derive(Component, Default, Debug)]
 struct Transformable {
@@ -142,7 +130,6 @@ fn main() {
         .add_systems(Update, transform_ui)
         // Resources (live data that can be accessed from any system)
         .init_resource::<UiState>()
-        // .init_resource::<JointTrans>()
         .run(); // Event loop etc occurs here
 }
 
@@ -185,6 +172,8 @@ fn setup(
 ) {
     let material = materials.add(Color::WHITE.into());
     let transform = Transform::from_translation(Vec3::ZERO);
+
+    // Build all three segments from groups of PbrBundle spawns
     for i in 0..3 {
         let arm_transform = Transform::from_xyz(0.0, 0.0, -2.0);
         let mesh_base = meshes.add(Mesh::new_typical_cylinder(1.5, 1.));
@@ -275,19 +264,20 @@ impl SinVec3 for Vec3 {
 fn transform_ui(
     mut transformables: Query<(&mut Transform, &mut Transformable)>,
     mut ui_state: ResMut<UiState>,
-    // mut joint_trans: ResMut<JointTrans>,
     mut ctx: EguiContexts,
 ) {
     // A wrapper function for creating a slider with common settings,
     // e.g. range, clamp, step_by, etc
     fn common_slider<'a>(value: &'a mut f32, text: &str) -> Slider<'a> {
-        Slider::new(value, -10000.0..=10000.0)
+        Slider::new(value, -100.0..=100.0)
             .text(text)
             .clamp_to_range(false)
             .drag_value_speed(0.001)
             .step_by(0.001)
     }
 
+    // Closure function for adding entire groups of sliders at once
+    // One for each stage of the arm
     let dual_quat_sliders = |ui: &mut Ui, dq_ctrls: &mut DualQuatCtrls| {
         ui.add(common_slider(&mut dq_ctrls.theta, "theta"));
         ui.add(common_slider(&mut dq_ctrls.rot.x, "pitch axis"));
@@ -321,13 +311,18 @@ fn transform_ui(
         dual_quat_sliders(ui, &mut ui_state.dual_quat3);
     });
 
+    // Closure function for computing dual quaternion values from control values
     let dq_from_ctrls = |ctrls: &DualQuatCtrls| {
+        // Note that we are scaling up rotation by 100x to avoid some singularities with theta
+        let rot = ctrls.rot * 100.0;
         let theta = ctrls.theta;
 
-        let real_quat = ((theta * ctrls.rot) / 2.0).sin();
-        let real_quat_w = (theta / 2.).cos();
+        // Building up the dual quaternion in portions
+        let real_quat = ((theta * rot) / 2.0).sin();
+        let real_quat_w = (theta / 2.0).cos();
         let imag_quat = (0.5 * ctrls.rigid_body_comps) * (theta / 2.0).cos();
 
+        // Final assembly, and spit it out
         DualQuaternion::new_from_array([
             // real quat refers to the roll/pitch/yaw of the axis.
             real_quat.x,
@@ -342,14 +337,18 @@ fn transform_ui(
         ])
     };
 
+    // Compute dual quaternions from the control values
     let dq1 = dq_from_ctrls(&ui_state.dual_quat1);
     let dq2 = dq_from_ctrls(&ui_state.dual_quat2);
     let dq3 = dq_from_ctrls(&ui_state.dual_quat3);
 
     let base_dual_quat = DualQuaternion::<f32>::one();
-    // Iterate over all transformables
 
+    // Iterate over all transformables
     for (mut transform, transformable) in &mut transformables {
+        // Transformable contains `id` and node_transform`
+        // Here I am matching against `id` to do dual quaternion multiplication
+        // TODO: replace logic with iterator & `Vec<DualQuaternion>`
         let dq = match transformable.id {
             0 => base_dual_quat * dq1,
             1 => base_dual_quat * dq1 * dq2,
@@ -358,17 +357,23 @@ fn transform_ui(
                 panic!("wrong id gfy");
             }
         };
-        let base_transform = Transform {
+
+        // This is where we build the Bevy transform from the dual quaternion
+        let quat_trans = Transform {
             rotation: Quat::ext_from(dq.real()).normalize(),
             translation: Quat::ext_from(dq.dual()).xyz(),
             scale: Vec3::ONE,
         };
 
+        // Finally, we are building the arm transform. Each arm is offset from the previous by a fixed amount, calculated from its ID
+        // TODO: replace with per-segment transform.
         let arm_trans = match transformable.id {
             0 => Transform::default(),
             1.. => Transform::from_translation(Vec3::new(0.0, 0.0, transformable.id as f32 * 5.0)),
             _ => panic!("crabs hatet his one neet trik"),
         };
-        *transform = base_transform * arm_trans * transformable.node_transform;
+
+        // Build final transform
+        *transform = quat_trans * arm_trans * transformable.node_transform;
     }
 }
