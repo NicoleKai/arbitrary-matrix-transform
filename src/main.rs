@@ -9,20 +9,29 @@ use bevy_egui::{
     egui::{self, Slider},
     EguiContexts,
 };
-use static_math;
+use static_math::{self, DualQuaternion, Quaternion};
 
 // This struct stores the values for the sliders, so that they persist between frames
 // As EGUI is immediate mode, we have to maintain the state of the GUI ourselves
 #[derive(Resource, Default, Clone)]
 struct UiState {
-    x: f32,
-    y: f32,
-    z: f32,
-    w: f32,
-    xt: f32,
-    yt: f32,
-    zt: f32,
-    wt: f32,
+    // x: f32,
+    // y: f32,
+    // z: f32,
+    // w: f32,
+    // xt: f32,
+    // yt: f32,
+    // zt: f32,
+    // wt: f32,
+    slider: f32,
+    pitch: f32,
+    yaw: f32,
+    roll: f32,
+}
+
+#[derive(Resource, Default, Clone)]
+struct JointTrans {
+    dual_quat: Vec<DualQuaternion<f32>>,
 }
 
 #[derive(Component, Default, Debug)]
@@ -53,24 +62,34 @@ impl InternalFrom<static_math::Quaternion<f32>> for Quat {
     }
 }
 
-// trait BevyQuatToStaticQuaternion {
-//     fn as_static_quat(&mut self) -> static_math::Quaternion<f32>;
-// }
+impl InternalFrom<static_math::matrix3x3::M33<f32>> for Mat3 {
+    fn ext_from(static_mat3: static_math::matrix3x3::M33<f32>) -> Self {
+        let s = static_mat3.get_rows();
+        let arr: [f32; 9] = [
+            s[0][0], s[0][1], s[0][2], s[1][0], s[1][1], s[1][2], s[2][0], s[2][1], s[2][2],
+        ];
+        // TODO: check if we need to transpose
+        Self::from_cols_array(&arr)
+    }
+}
 
-// impl BevyQuatToStaticQuaternion for Quat {
-//     fn as_static_quat(&mut self) -> static_math::Quaternion<f32> {
-//         static_math::Quaternion::new_from(self.w, self.x, self.y, self.z)
+// impl InternalFrom<static_math::matrix3x3::M33<f32>> for Mat3 {
+//     fn ext_from(static_mat3: static_math::matrix3x3::M33<f32>) -> Self {
+//         let s = static_mat3.get_rows();
+//         let arr: [f32; 9] = [
+//             s[0][0], s[0][1], s[0][2], s[1][0], s[1][1], s[1][2], s[2][0], s[2][1], s[2][2],
+//         ];
+//         // TODO: check if we need to transpose
+//         Self::from_cols_array(&arr)
 //     }
 // }
-// trait StaticQuaternionToBevyQuat {
-//     fn as_bevy_quat(&mut self) -> static_math::Quaternion<f32>;
-// }
 
-// impl BevyQuatToStaticQuaternion for Quat {
-//     fn as_static_quat(&mut self) -> static_math::Quaternion<f32> {
-//         static_math::Quaternion::new_from(self.w, self.x, self.y, self.z)
-//     }
-// }
+impl InternalFrom<Mat3> for static_math::matrix3x3::M33<f32> {
+    fn ext_from(m: Mat3) -> Self {
+        let m = m.to_cols_array_2d();
+        Self::new([m[0], m[1], m[2]])
+    }
+}
 
 // Main entrypoint
 fn main() {
@@ -90,6 +109,7 @@ fn main() {
         .add_systems(Update, transform_ui)
         // Resources (live data that can be accessed from any system)
         .init_resource::<UiState>()
+        .init_resource::<JointTrans>()
         .run(); // Event loop etc occurs here
 }
 
@@ -128,6 +148,7 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut joint_trans: ResMut<JointTrans>,
 ) {
     let material = materials.add(Color::WHITE.into());
     let mesh_base = meshes.add(Mesh::new_typical_cylinder(1.5, 1.));
@@ -136,6 +157,12 @@ fn setup(
     let transform = Transform::from_translation(Vec3::ZERO);
     let arm_transform = Transform::from_xyz(0.0, 0.0, -2.0);
 
+    let q_real = Quaternion::new_from(0., 0., 0., 0.);
+    let q_dual = Quaternion::new_from(0., 0., 0., 0.);
+    q_real * q_dual;
+    joint_trans
+        .dual_quat
+        .push(DualQuaternion::new(q_real, q_dual));
     commands.spawn((
         PbrBundle {
             mesh: mesh_base,
@@ -183,6 +210,7 @@ fn setup(
 fn transform_ui(
     mut transformables: Query<(&mut Transform, &mut Transformable)>,
     mut ui_state: ResMut<UiState>,
+    mut joint_trans: ResMut<JointTrans>,
     mut ctx: EguiContexts,
 ) {
     // A wrapper function for creating a slider with common settings,
@@ -202,28 +230,51 @@ fn transform_ui(
         // Slider width style
         ui.style_mut().spacing.slider_width = 450.0;
         // Sliders are added here, passed mutable access to the variables storing their states
-        ui.add(common_slider(&mut ui_state.x, "x"));
-        ui.add(common_slider(&mut ui_state.y, "y"));
-        ui.add(common_slider(&mut ui_state.z, "z"));
-        ui.add(common_slider(&mut ui_state.w, "w"));
-        ui.add(common_slider(&mut ui_state.xt, "xt"));
-        ui.add(common_slider(&mut ui_state.yt, "yt"));
-        ui.add(common_slider(&mut ui_state.zt, "zt"));
-        ui.add(common_slider(&mut ui_state.wt, "wt"));
+        ui.add(common_slider(&mut ui_state.slider, "slider"));
+        ui.add(common_slider(&mut ui_state.pitch, "pitch"));
+        ui.add(common_slider(&mut ui_state.yaw, "yaw"));
+        ui.add(common_slider(&mut ui_state.roll, "roll"));
+        // ui.add(common_slider(&mut ui_state.x, "x"));
+        // ui.add(common_slider(&mut ui_state.y, "y"));
+        // ui.add(common_slider(&mut ui_state.z, "z"));
+        // ui.add(common_slider(&mut ui_state.w, "w"));
+        // ui.add(common_slider(&mut ui_state.xt, "xt"));
+        // ui.add(common_slider(&mut ui_state.yt, "yt"));
+        // ui.add(common_slider(&mut ui_state.zt, "zt"));
+        // ui.add(common_slider(&mut ui_state.wt, "wt"));
     });
 
+    let i_hat = Vec3::new(1., 0., 0.);
+    let j_hat = Vec3::new(0., 1., 0.);
+    let k_hat = Vec3::new(0., 0., 1.);
+    let u_x = 
     // Iterate over all transformables
     for (mut transform, transformable) in &mut transformables {
-        let translation =
-            static_math::Quaternion::new_from(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt);
-        let rotation =
-            static_math::Quaternion::new_from(ui_state.x, ui_state.y, ui_state.z, ui_state.w);
-        let base_transform = Transform {
-            translation: Quat::ext_from(translation).xyz(),
-            rotation: Quat::ext_from(rotation).normalize(),
-            scale: Vec3::ONE,
-        };
+        // let translation =
+        //     static_math::Quaternion::new_from(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt);
+        // let rotation =
+        //     static_math::Quaternion::new_from(ui_state.x, ui_state.y, ui_state.z, ui_state.w);
+        // // let a =
+
+        let first_joint = *joint_trans.dual_quat.get(0).unwrap();
+        let dt = DualQuaternion::new_from_rotation(&Quaternion::<f32>::from_euler_angles(
+            ui_state.slider,
+            0.,
+            0.,
+        ));
+        let (rot, trans) = dt.to_rotation_translation();
+        // rotation.exp()
+
+        // let base_transform = Transform {
+        //     translation: Quat::ext_from(translation).xyz(),
+        //     rotation: Quat::ext_from(rotation).normalize(),
+        //     scale: Vec3::ONE,
+        // };
         // The actual quaternion transform occurs here
-        *transform = base_transform * transformable.node_transform;
+        // *transform =
+        // let base_transform = Transform {
+        Transform::from_matrix()
+        // Mat3::ext_from(rot))
+        // transformable.node_transform;
     }
 }
