@@ -355,9 +355,14 @@ fn transform_ui(
         let theta = ctrls.theta;
 
         // Building up the dual quaternion in portions
+
+        // real quat XYZ
         let real_quat = ((theta * rot) / 2.0).sin();
+        // real quat W
         let real_quat_w = (theta / 2.0).cos();
+        // 'imaginary' quat xyz
         let imag_quat = (0.5 * ctrls.rigid_body_comps) * (theta / 2.0).cos();
+        // note that we skip the w of the imaginary quat
 
         // Final assembly, and spit it out
         DualQuaternion::new_from_array([
