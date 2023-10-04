@@ -121,11 +121,15 @@ fn transform_ui(
             vec4_slider(&mut ui, &mut value.w_axis, "w_axis");
             ui.end_row();
         });
+        // ui.with_layout(Layout::, )
         ui.label(format!(
             "Determinant: {}",
             value.determinant() // value.x_axis.x * value.y_axis.y * value.z_axis.z
         ))
         .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
+        if ui.button("Reset").clicked() {
+            *value = Mat4::default();
+        }
     }
 
     // The floating EGUI window
