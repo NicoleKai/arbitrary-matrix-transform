@@ -4,19 +4,38 @@ use bevy_egui::{
     EguiContexts,
 };
 
+impl Into<CtrlId> for usize {
+    fn into(self) -> CtrlId {
+        CtrlId(self)
+    }
+}
+
+#[derive(Hash, Clone)]
+struct CtrlId(usize);
+
+#[derive(Clone, Default)]
+enum CtrlMode {
+    #[default]
+    Normal,
+    Sin,
+    Cos,
+    Tan,
+}
+
+#[derive(Clone, Default)]
+struct CtrlState {
+    mode: CtrlMode,
+}
+
+#[derive(Default, Clone)]
+struct CtrlsState(std::collections::HashMap<CtrlId, CtrlState>);
+
 // This struct stores the values for the sliders, so that they persist between frames
 // As EGUI is immediate mode, we have to maintain the state of the GUI ourselves
 #[derive(Resource, Default, Clone)]
 struct UiState {
     mat_transform: Mat4,
-    // x: f32,
-    // y: f32,
-    // z: f32,
-    // w: f32,
-    // xt: f32,
-    // yt: f32,
-    // zt: f32,
-    // wt: f32,
+    map_id_to_state: CtrlsState,
 }
 
 // A dummy struct used for Query-ing the cube entity, for altering its transform.
@@ -72,45 +91,42 @@ fn setup(
     ));
 }
 
+trait EguiExtras {
+    fn ext_drag(
+        &mut self,
+        id: impl Into<CtrlId>,
+        s: &mut CtrlsState,
+        value: &mut f32,
+        hover_text: impl Into<String>,
+    );
+}
+
+impl EguiExtras for Ui {
+    fn ext_drag(
+        &mut self,
+        id: impl Into<CtrlId>,
+        s: &mut CtrlsState,
+        value: &mut f32,
+        hover_text: impl Into<String>,
+    ) {
+        let id: CtrlId = id.into();
+        let hover_text: String = hover_text.into();
+        let drag = DragValue::new(value).speed(0.08);
+        let handle = self.add(drag);
+        if handle.secondary_clicked() {
+            dbg!(&hover_text);
+        }
+        handle.on_hover_text(hover_text);
+    }
+}
+
 // This is where the transform happens
 fn transform_ui(
     mut foxies: Query<(&mut Transform, &RotateFlag)>,
     mut ui_state: ResMut<UiState>,
     mut ctx: EguiContexts,
 ) {
-    // A wrapper function for creating a slider with common settings,
-    // e.g. range, clamp, step_by, etc
-    // fn common_slider<'a>(value: &'a mut f32, text: &str) -> Slider<'a> {
-    //     Slider::new(value, -10.0..=10.0)
-    //         .text(text)
-    //         .clamp_to_range(false)
-    //         .drag_value_speed(0.01)
-    //         .step_by(0.01)
-    //     DragValue::new(value);
-    // }
-
-    // fn vec4_slider<'a>(ui: &mut Ui, value: &mut Vec4, prepend: impl Into<String>) {
-    //     let prepend: String = "X".to_string();
-    //     ui.add(DragValue::new(&mut value.x).speed(0.5))
-    //         .on_hover_text(format!("Mat4: {}, Vec4: x", prepend));
-    //     ui.add(DragValue::new(&mut value.y).speed(0.5))
-    //         .on_hover_text(format!("Mat4: {}, Vec4: y", prepend));
-    //     ui.add(DragValue::new(&mut value.z).speed(0.5))
-    //         .on_hover_text(format!("Mat4: {}, Vec4: z", prepend));
-    //     ui.add(DragValue::new(&mut value.w).speed(0.5))
-    //         .on_hover_text(format!("Mat4: {}, Vec4: w", prepend));
-    // }
-
-    fn common_drag_value(ui: &mut Ui, value: &mut f32, hover_text: impl Into<String>) {
-        let hover_text: String = hover_text.into();
-        let drag = DragValue::new(value).speed(0.08);
-        let handle = ui.add(drag);
-        if handle.secondary_clicked() {
-            dbg!(&hover_text);
-        }
-        handle.on_hover_text(hover_text);
-    }
-    fn mat4_slider<'a>(ui: &mut Ui, value: &mut Mat4) {
+    fn mat4_slider<'a>(ui: &mut Ui, s: &CtrlsState, value: &mut Mat4) {
         egui::Grid::new("mat4_grid").show(ui, |mut ui| {
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "row");
             ui.colored_label(egui::Color32::GREEN, "i-hat");
@@ -121,34 +137,34 @@ fn transform_ui(
             ui.end_row();
 
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "X");
-            common_drag_value(&mut ui, &mut value.x_axis.x, "Mat4: x_axis, Vec4: x");
-            common_drag_value(&mut ui, &mut value.x_axis.y, "Mat4: x_axis, Vec4: y");
-            common_drag_value(&mut ui, &mut value.x_axis.z, "Mat4: x_axis, Vec4: z");
-            common_drag_value(&mut ui, &mut value.w_axis.x, "Mat4: w_axis, Vec4: x");
+            ui.ext_drag(0, &mut s, &mut value.x_axis.x, "Mat4: x_axis, Vec4: x");
+            ui.ext_drag(1, &mut s, &mut value.x_axis.y, "Mat4: x_axis, Vec4: y");
+            ui.ext_drag(2, &mut s, &mut value.x_axis.z, "Mat4: x_axis, Vec4: z");
+            ui.ext_drag(3, &mut s, &mut value.w_axis.x, "Mat4: w_axis, Vec4: x");
 
             ui.end_row();
 
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Y");
-            common_drag_value(&mut ui, &mut value.y_axis.x, "Mat4: y_axis, Vec4: x");
-            common_drag_value(&mut ui, &mut value.y_axis.y, "Mat4: y_axis, Vec4: y");
-            common_drag_value(&mut ui, &mut value.y_axis.z, "Mat4: y_axis, Vec4: z");
-            common_drag_value(&mut ui, &mut value.w_axis.y, "Mat4: w_axis, Vec4: y");
+            ui.ext_drag(4, &mut s, &mut value.y_axis.x, "Mat4: y_axis, Vec4: x");
+            ui.ext_drag(5, &mut s, &mut value.y_axis.y, "Mat4: y_axis, Vec4: y");
+            ui.ext_drag(6, &mut s, &mut value.y_axis.z, "Mat4: y_axis, Vec4: z");
+            ui.ext_drag(7, &mut s, &mut value.w_axis.y, "Mat4: w_axis, Vec4: y");
 
             ui.end_row();
 
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Z");
-            common_drag_value(&mut ui, &mut value.z_axis.x, "Mat4: z_axis, Vec4: x");
-            common_drag_value(&mut ui, &mut value.z_axis.y, "Mat4: z_axis, Vec4: y");
-            common_drag_value(&mut ui, &mut value.z_axis.z, "Mat4: z_axis, Vec4: z");
-            common_drag_value(&mut ui, &mut value.w_axis.z, "Mat4: w_axis, Vec4: z");
+            ui.ext_drag(8, &mut s, &mut value.z_axis.x, "Mat4: z_axis, Vec4: x");
+            ui.ext_drag(9, &mut s, &mut value.z_axis.y, "Mat4: z_axis, Vec4: y");
+            ui.ext_drag(10, &mut s, &mut value.z_axis.z, "Mat4: z_axis, Vec4: z");
+            ui.ext_drag(11, &mut s, &mut value.w_axis.z, "Mat4: w_axis, Vec4: z");
             ui.end_row();
 
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "W");
 
-            common_drag_value(&mut ui, &mut value.x_axis.w, "Mat4: x_axis, Vec4: w");
-            common_drag_value(&mut ui, &mut value.y_axis.w, "Mat4: y_axis, Vec4: w");
-            common_drag_value(&mut ui, &mut value.z_axis.w, "Mat4: z_axis, Vec4: w");
-            common_drag_value(&mut ui, &mut value.w_axis.w, "Mat4: w_axis, Vec4: w");
+            ui.ext_drag(12, &mut s, &mut value.x_axis.w, "Mat4: x_axis, Vec4: w");
+            ui.ext_drag(13, &mut s, &mut value.y_axis.w, "Mat4: y_axis, Vec4: w");
+            ui.ext_drag(14, &mut s, &mut value.z_axis.w, "Mat4: z_axis, Vec4: w");
+            ui.ext_drag(15, &mut s, &mut value.w_axis.w, "Mat4: w_axis, Vec4: w");
 
             ui.end_row();
         });
@@ -170,7 +186,7 @@ fn transform_ui(
         // Slider width style
         ui.style_mut().spacing.slider_width = 450.0;
         // Sliders are added here, passed mutable access to the variables storing their states
-        mat4_slider(ui, &mut ui_state.mat_transform);
+        mat4_slider(ui, &mut ui_state.extra_state, &mut ui_state.mat_transform);
     });
 
     for (mut transform, _foxy) in &mut foxies {
