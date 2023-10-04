@@ -1,8 +1,10 @@
 use bevy::{pbr::DirectionalLightShadowMap, prelude::*};
 use bevy_egui::{
-    egui::{self, DragValue, Slider, Ui},
+    egui::{self, Color32, DragValue, Slider, Ui},
     EguiContexts,
 };
+use strum::EnumIter;
+use strum::IntoEnumIterator;
 
 impl Into<CtrlId> for usize {
     fn into(self) -> CtrlId {
@@ -10,10 +12,10 @@ impl Into<CtrlId> for usize {
     }
 }
 
-#[derive(Hash, Clone)]
+#[derive(Hash, Clone, PartialEq, Eq, Debug)]
 struct CtrlId(usize);
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug, EnumIter, Eq, PartialEq)]
 enum CtrlMode {
     #[default]
     Normal,
@@ -22,12 +24,41 @@ enum CtrlMode {
     Tan,
 }
 
-#[derive(Clone, Default)]
+impl CtrlMode {
+    fn get_color(&self) -> Color32 {
+        match self {
+            CtrlMode::Normal => Color32::default(),
+            CtrlMode::Sin => Color32::LIGHT_GRAY,
+            CtrlMode::Cos => Color32::BROWN,
+            CtrlMode::Tan => Color32::YELLOW,
+        }
+    }
+
+    fn get_char(&self) -> char {
+        match self {
+            CtrlMode::Normal => 'n',
+            CtrlMode::Sin => 's',
+            CtrlMode::Cos => 'c',
+            CtrlMode::Tan => 't',
+        }
+    }
+
+    fn get_next(&self) -> Self {
+        let first = Self::iter().next().expect("Could not get first value!");
+        dbg!(&first);
+        Self::iter()
+            .skip_while(|x| *self != *x)
+            .next()
+            .unwrap_or(first)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 struct CtrlState {
     mode: CtrlMode,
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 struct CtrlsState(std::collections::HashMap<CtrlId, CtrlState>);
 
 // This struct stores the values for the sliders, so that they persist between frames
@@ -35,7 +66,7 @@ struct CtrlsState(std::collections::HashMap<CtrlId, CtrlState>);
 #[derive(Resource, Default, Clone)]
 struct UiState {
     mat_transform: Mat4,
-    map_id_to_state: CtrlsState,
+    ctrls_state: CtrlsState,
 }
 
 // A dummy struct used for Query-ing the cube entity, for altering its transform.
@@ -102,6 +133,7 @@ trait EguiExtras {
 }
 
 impl EguiExtras for Ui {
+    #[inline]
     fn ext_drag(
         &mut self,
         id: impl Into<CtrlId>,
@@ -110,12 +142,22 @@ impl EguiExtras for Ui {
         hover_text: impl Into<String>,
     ) {
         let id: CtrlId = id.into();
+        let mut def = CtrlState::default();
+        let ctrl_state = s.0.get_mut(&id).unwrap_or(&mut def);
         let hover_text: String = hover_text.into();
-        let drag = DragValue::new(value).speed(0.08);
+        let drag = DragValue::new(value)
+            .speed(0.08)
+            .custom_formatter(|n, _| format!("{}{:.2}", ctrl_state.mode.get_char(), n))
+            .custom_parser(|s| {
+                str::parse::<f64>(s.trim_start_matches(ctrl_state.mode.get_char())).ok()
+            });
         let handle = self.add(drag);
         if handle.secondary_clicked() {
-            dbg!(&hover_text);
+            ctrl_state.mode = ctrl_state.mode.get_next();
         }
+
+        ctrl_state.mode.get_color();
+
         handle.on_hover_text(hover_text);
     }
 }
@@ -126,8 +168,9 @@ fn transform_ui(
     mut ui_state: ResMut<UiState>,
     mut ctx: EguiContexts,
 ) {
-    fn mat4_slider<'a>(ui: &mut Ui, s: &CtrlsState, value: &mut Mat4) {
-        egui::Grid::new("mat4_grid").show(ui, |mut ui| {
+    #[inline]
+    fn mat4_slider<'a>(ui: &mut Ui, mut s: &mut CtrlsState, value: &mut Mat4) {
+        egui::Grid::new("mat4_grid").show(ui, |ui| {
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "row");
             ui.colored_label(egui::Color32::GREEN, "i-hat");
             ui.colored_label(egui::Color32::RED, "j-hat");
@@ -186,7 +229,10 @@ fn transform_ui(
         // Slider width style
         ui.style_mut().spacing.slider_width = 450.0;
         // Sliders are added here, passed mutable access to the variables storing their states
-        mat4_slider(ui, &mut ui_state.extra_state, &mut ui_state.mat_transform);
+        // Moooooom. The borrow checker is bullying me Y~Y
+        let mut cloned_ui_mat = ui_state.mat_transform;
+        mat4_slider(ui, &mut ui_state.ctrls_state, &mut cloned_ui_mat);
+        ui_state.mat_transform = cloned_ui_mat;
     });
 
     for (mut transform, _foxy) in &mut foxies {
