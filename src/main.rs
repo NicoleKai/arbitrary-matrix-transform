@@ -91,18 +91,35 @@ fn transform_ui(
 
     fn vec4_slider<'a>(ui: &mut Ui, value: &mut Vec4, prepend: impl Into<String>) {
         let prepend: String = prepend.into();
-        ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
-            ui.add(DragValue::new(&mut value.x));
-            ui.add(DragValue::new(&mut value.y));
-            ui.add(DragValue::new(&mut value.z));
-            ui.add(DragValue::new(&mut value.w));
-        });
+        ui.add(DragValue::new(&mut value.x).speed(0.5))
+            .on_hover_text(format!("Mat4: {}, Vec4: x", prepend));
+        ui.add(DragValue::new(&mut value.y).speed(0.5))
+            .on_hover_text(format!("Mat4: {}, Vec4: y", prepend));
+        ui.add(DragValue::new(&mut value.z).speed(0.5))
+            .on_hover_text(format!("Mat4: {}, Vec4: z", prepend));
+        ui.add(DragValue::new(&mut value.w).speed(0.5))
+            .on_hover_text(format!("Mat4: {}, Vec4: w", prepend));
     }
     fn mat4_slider<'a>(mut ui: &mut Ui, value: &mut Mat4) {
-        vec4_slider(&mut ui, &mut value.x_axis, "X");
-        vec4_slider(&mut ui, &mut value.y_axis, "Y");
-        vec4_slider(&mut ui, &mut value.z_axis, "Z");
-        vec4_slider(&mut ui, &mut value.w_axis, "W");
+        egui::Grid::new("mat4_grid").show(ui, |mut ui| {
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "row");
+            ui.colored_label(egui::Color32::GREEN, "i-hat");
+            ui.colored_label(egui::Color32::RED, "j-hat");
+            ui.colored_label(egui::Color32::from_rgb(0, 128, 128), "k-hat");
+            ui.end_row();
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "X");
+            vec4_slider(&mut ui, &mut value.x_axis, "x_axis");
+            ui.end_row();
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Y");
+            vec4_slider(&mut ui, &mut value.y_axis, "y_axis");
+            ui.end_row();
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Z");
+            vec4_slider(&mut ui, &mut value.z_axis, "z_axis");
+            ui.end_row();
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "W");
+            vec4_slider(&mut ui, &mut value.w_axis, "w_axis");
+            ui.end_row();
+        });
     }
 
     // The floating EGUI window
