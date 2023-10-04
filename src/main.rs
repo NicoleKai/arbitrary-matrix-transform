@@ -106,6 +106,7 @@ fn transform_ui(
             ui.colored_label(egui::Color32::GREEN, "i-hat");
             ui.colored_label(egui::Color32::RED, "j-hat");
             ui.colored_label(egui::Color32::from_rgb(0, 128, 128), "k-hat");
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "trans");
             ui.end_row();
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "X");
             vec4_slider(&mut ui, &mut value.x_axis, "x_axis");
@@ -120,10 +121,15 @@ fn transform_ui(
             vec4_slider(&mut ui, &mut value.w_axis, "w_axis");
             ui.end_row();
         });
+        ui.label(format!(
+            "Determinant: {}",
+            value.determinant() // value.x_axis.x * value.y_axis.y * value.z_axis.z
+        ))
+        .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
     }
 
     // The floating EGUI window
-    egui::Window::new("Quaternion control").show(ctx.ctx_mut(), |ui| {
+    egui::Window::new("Mat4 Control").show(ctx.ctx_mut(), |ui| {
         // Note that the code inside this block is part of a closure, similar to lambdas in Python.
 
         // Slider width style
