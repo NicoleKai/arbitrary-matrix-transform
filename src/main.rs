@@ -109,6 +109,7 @@ fn transform_ui(
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "trans");
             ui.end_row();
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "X");
+
             ui.add(DragValue::new(&mut value.x_axis.x).speed(0.5))
                 .on_hover_text("Mat4: x_axis, Vec4: x");
             ui.add(DragValue::new(&mut value.x_axis.y).speed(0.5))
@@ -117,8 +118,8 @@ fn transform_ui(
                 .on_hover_text("Mat4: x_axis, Vec4: z");
             ui.add(DragValue::new(&mut value.x_axis.w).speed(0.5))
                 .on_hover_text("Mat4: x_axis, Vec4: w");
-            // vec4_slider(&mut ui, &mut value.x_axis, "x_axis");
             ui.end_row();
+
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Y");
             ui.add(DragValue::new(&mut value.y_axis.x).speed(0.5))
                 .on_hover_text("Mat4: y_axis, Vec4: x");
@@ -128,10 +129,9 @@ fn transform_ui(
                 .on_hover_text("Mat4: y_axis, Vec4: z");
             ui.add(DragValue::new(&mut value.y_axis.w).speed(0.5))
                 .on_hover_text("Mat4: y_axis, Vec4: w");
-            // vec4_slider(&mut ui, &mut value.y_axis, "y_axis");
             ui.end_row();
+
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Z");
-            // vec4_slider(&mut ui, &mut value.z_axis, "z_axis");
             ui.add(DragValue::new(&mut value.z_axis.x).speed(0.5))
                 .on_hover_text("Mat4: z_axis, Vec4: x");
             ui.add(DragValue::new(&mut value.z_axis.y).speed(0.5))
@@ -141,8 +141,8 @@ fn transform_ui(
             ui.add(DragValue::new(&mut value.z_axis.w).speed(0.5))
                 .on_hover_text("Mat4: z_axis, Vec4: w");
             ui.end_row();
+
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "W");
-            // vec4_slider(&mut ui, &mut value.w_axis, "w_axis");
             ui.add(DragValue::new(&mut value.w_axis.x).speed(0.5))
                 .on_hover_text("Mat4: w_axis, Vec4: x");
             ui.add(DragValue::new(&mut value.w_axis.y).speed(0.5))
