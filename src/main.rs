@@ -1,6 +1,6 @@
 use bevy::{pbr::DirectionalLightShadowMap, prelude::*};
 use bevy_egui::{
-    egui::{self, Slider},
+    egui::{self, Slider, Ui},
     EguiContexts,
 };
 
@@ -8,14 +8,15 @@ use bevy_egui::{
 // As EGUI is immediate mode, we have to maintain the state of the GUI ourselves
 #[derive(Resource, Default, Clone)]
 struct UiState {
-    x: f32,
-    y: f32,
-    z: f32,
-    w: f32,
-    xt: f32,
-    yt: f32,
-    zt: f32,
-    wt: f32,
+    mat_transform: Mat4,
+    // x: f32,
+    // y: f32,
+    // z: f32,
+    // w: f32,
+    // xt: f32,
+    // yt: f32,
+    // zt: f32,
+    // wt: f32,
 }
 
 // A dummy struct used for Query-ing the cube entity, for altering its transform.
@@ -51,22 +52,6 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    // let mut cylinder_base = shape::Cylinder::default();
-    // cylinder_base.radius = 1.;
-    // cylinder_base.height = 10.;
-    // Spawn a cube, with color settings so that it's easier to view
-    // commands.spawn((
-    //     PbrBundle {
-    //         mesh: meshes.add(Mesh::from(cylinder_base)),
-    //         // mesh: meshes.add(Mesh::from(shape::Cube::new(1.0))),
-    //         material: materials.add(Color::WHITE.into()),
-    //         transform: Transform::from_translation(Vec3::ZERO),
-    //         ..default()
-    //     },
-    //     RotateFlag {},
-    // ));
-
-    // Camera is necessary to render anything
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(0.0, 10.0, 20.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
@@ -89,7 +74,7 @@ fn setup(
 
 // This is where the transform happens
 fn transform_ui(
-    mut cubes: Query<(&mut Transform, &RotateFlag)>,
+    mut foxies: Query<(&mut Transform, &RotateFlag)>,
     mut ui_state: ResMut<UiState>,
     mut ctx: EguiContexts,
 ) {
@@ -103,6 +88,32 @@ fn transform_ui(
             .step_by(0.01)
     }
 
+    fn vec4_slider<'a>(ui: &mut Ui, value: &mut Vec4, prepend: impl Into<String>) {
+        let prepend: String = prepend.into();
+        ui.add(common_slider(
+            &mut value.x,
+            format!("{}: Vec4 X", prepend).as_str(),
+        ));
+        ui.add(common_slider(
+            &mut value.y,
+            format!("{}: Vec4 Y", prepend).as_str(),
+        ));
+        ui.add(common_slider(
+            &mut value.z,
+            format!("{}: Vec4 Z", prepend).as_str(),
+        ));
+        ui.add(common_slider(
+            &mut value.w,
+            format!("{}: Vec4 W", prepend).as_str(),
+        ));
+    }
+    fn mat4_slider<'a>(mut ui: &mut Ui, value: &mut Mat4) {
+        vec4_slider(&mut ui, &mut value.x_axis, "X axis");
+        vec4_slider(&mut ui, &mut value.y_axis, "Y axis");
+        vec4_slider(&mut ui, &mut value.z_axis, "Z axis");
+        vec4_slider(&mut ui, &mut value.w_axis, "W axis");
+    }
+
     // The floating EGUI window
     egui::Window::new("Quaternion control").show(ctx.ctx_mut(), |ui| {
         // Note that the code inside this block is part of a closure, similar to lambdas in Python.
@@ -110,26 +121,18 @@ fn transform_ui(
         // Slider width style
         ui.style_mut().spacing.slider_width = 450.0;
         // Sliders are added here, passed mutable access to the variables storing their states
-        ui.add(common_slider(&mut ui_state.x, "x"));
-        ui.add(common_slider(&mut ui_state.y, "y"));
-        ui.add(common_slider(&mut ui_state.z, "z"));
-        ui.add(common_slider(&mut ui_state.w, "w"));
-        ui.add(common_slider(&mut ui_state.xt, "xt"));
-        ui.add(common_slider(&mut ui_state.yt, "yt"));
-        ui.add(common_slider(&mut ui_state.zt, "zt"));
-        ui.add(common_slider(&mut ui_state.wt, "wt"));
-    }); // Calculate the Dual part of the Dual Quaternion
-        //let dual_part_real = -0.5 * (ui_state.x * ui_state.xt + ui_state.y * ui_state.yt + ui_state.z * ui_state.zt);
-        //let dual_part_i = 0.5 * (ui_state.xt * normalized_rotation_quat.w + ui_state.zt * normalized_rotation_quat.y - ui_state.yt * normalized_rotation_quat.z);
-        //let dual_part_j = 0.5 * (-ui_state.zt * normalized_rotation_quat.x + ui_state.xt * normalized_rotation_quat.z + ui_state.yt * normalized_rotation_quat.w);
-        //let dual_part_k = 0.5 * (ui_state.yt * normalized_rotation_quat.x - ui_state.xt * normalized_rotation_quat.y + ui_state.zt * normalized_rotation_quat.w);
+        mat4_slider(ui, &mut ui_state.mat_transform);
+    });
 
-    // Iterate over all cubes. In this case, we only have one, but this boilerplate is still considered best practice
-    for (mut transform, _cube) in &mut cubes {
-        // The actual quaternion transform occurs here
-        transform.rotation =
-            Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize();
-        transform.translation =
-            Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt).xyz();
+    for (mut transform, _foxy) in &mut foxies {
+        // let new_transform = Transform {
+        //     rotation: Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize(),
+        //     translation: Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt).xyz(),
+        //     scale: Vec3::ONE * 10.0,
+        // };
+        // let mut mat = new_transform.compute_matrix();
+        // dbg!(mat);
+        // mat.x_axis.x = 0.;
+        *transform = Transform::from_matrix(ui_state.mat_transform);
     }
 }
