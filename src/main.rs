@@ -1,6 +1,6 @@
 use bevy::{pbr::DirectionalLightShadowMap, prelude::*};
 use bevy_egui::{
-    egui::{self, Slider, Ui},
+    egui::{self, DragValue, Slider, Ui},
     EguiContexts,
 };
 
@@ -80,38 +80,29 @@ fn transform_ui(
 ) {
     // A wrapper function for creating a slider with common settings,
     // e.g. range, clamp, step_by, etc
-    fn common_slider<'a>(value: &'a mut f32, text: &str) -> Slider<'a> {
-        Slider::new(value, -10.0..=10.0)
-            .text(text)
-            .clamp_to_range(false)
-            .drag_value_speed(0.01)
-            .step_by(0.01)
-    }
+    // fn common_slider<'a>(value: &'a mut f32, text: &str) -> Slider<'a> {
+    //     Slider::new(value, -10.0..=10.0)
+    //         .text(text)
+    //         .clamp_to_range(false)
+    //         .drag_value_speed(0.01)
+    //         .step_by(0.01)
+    //     DragValue::new(value);
+    // }
 
     fn vec4_slider<'a>(ui: &mut Ui, value: &mut Vec4, prepend: impl Into<String>) {
         let prepend: String = prepend.into();
-        ui.add(common_slider(
-            &mut value.x,
-            format!("{}: Vec4 X", prepend).as_str(),
-        ));
-        ui.add(common_slider(
-            &mut value.y,
-            format!("{}: Vec4 Y", prepend).as_str(),
-        ));
-        ui.add(common_slider(
-            &mut value.z,
-            format!("{}: Vec4 Z", prepend).as_str(),
-        ));
-        ui.add(common_slider(
-            &mut value.w,
-            format!("{}: Vec4 W", prepend).as_str(),
-        ));
+        ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
+            ui.add(DragValue::new(&mut value.x));
+            ui.add(DragValue::new(&mut value.y));
+            ui.add(DragValue::new(&mut value.z));
+            ui.add(DragValue::new(&mut value.w));
+        });
     }
     fn mat4_slider<'a>(mut ui: &mut Ui, value: &mut Mat4) {
-        vec4_slider(&mut ui, &mut value.x_axis, "X axis");
-        vec4_slider(&mut ui, &mut value.y_axis, "Y axis");
-        vec4_slider(&mut ui, &mut value.z_axis, "Z axis");
-        vec4_slider(&mut ui, &mut value.w_axis, "W axis");
+        vec4_slider(&mut ui, &mut value.x_axis, "X");
+        vec4_slider(&mut ui, &mut value.y_axis, "Y");
+        vec4_slider(&mut ui, &mut value.z_axis, "Z");
+        vec4_slider(&mut ui, &mut value.w_axis, "W");
     }
 
     // The floating EGUI window
@@ -125,14 +116,7 @@ fn transform_ui(
     });
 
     for (mut transform, _foxy) in &mut foxies {
-        // let new_transform = Transform {
-        //     rotation: Quat::from_xyzw(ui_state.x, ui_state.y, ui_state.z, ui_state.w).normalize(),
-        //     translation: Quat::from_xyzw(ui_state.xt, ui_state.yt, ui_state.zt, ui_state.wt).xyz(),
-        //     scale: Vec3::ONE * 10.0,
-        // };
-        // let mut mat = new_transform.compute_matrix();
-        // dbg!(mat);
-        // mat.x_axis.x = 0.;
         *transform = Transform::from_matrix(ui_state.mat_transform);
+        // transform.scale = Vec3::ONE * 10.0;
     }
 }
