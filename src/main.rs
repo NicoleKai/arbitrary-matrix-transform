@@ -116,8 +116,8 @@ fn transform_ui(
                 .on_hover_text("Mat4: x_axis, Vec4: y");
             ui.add(DragValue::new(&mut value.x_axis.z).speed(0.5))
                 .on_hover_text("Mat4: x_axis, Vec4: z");
-            ui.add(DragValue::new(&mut value.x_axis.w).speed(0.5))
-                .on_hover_text("Mat4: x_axis, Vec4: w");
+            ui.add(DragValue::new(&mut value.w_axis.x).speed(0.5))
+                .on_hover_text("Mat4: w_axis, Vec4: x");
             ui.end_row();
 
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Y");
@@ -127,8 +127,8 @@ fn transform_ui(
                 .on_hover_text("Mat4: y_axis, Vec4: y");
             ui.add(DragValue::new(&mut value.y_axis.z).speed(0.5))
                 .on_hover_text("Mat4: y_axis, Vec4: z");
-            ui.add(DragValue::new(&mut value.y_axis.w).speed(0.5))
-                .on_hover_text("Mat4: y_axis, Vec4: w");
+            ui.add(DragValue::new(&mut value.w_axis.y).speed(0.5))
+                .on_hover_text("Mat4: w_axis, Vec4: y");
             ui.end_row();
 
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Z");
@@ -138,17 +138,18 @@ fn transform_ui(
                 .on_hover_text("Mat4: z_axis, Vec4: y");
             ui.add(DragValue::new(&mut value.z_axis.z).speed(0.5))
                 .on_hover_text("Mat4: z_axis, Vec4: z");
-            ui.add(DragValue::new(&mut value.z_axis.w).speed(0.5))
-                .on_hover_text("Mat4: z_axis, Vec4: w");
+            ui.add(DragValue::new(&mut value.w_axis.z).speed(0.5))
+                .on_hover_text("Mat4: w_axis, Vec4: z");
             ui.end_row();
 
             ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "W");
-            ui.add(DragValue::new(&mut value.w_axis.x).speed(0.5))
-                .on_hover_text("Mat4: w_axis, Vec4: x");
-            ui.add(DragValue::new(&mut value.w_axis.y).speed(0.5))
-                .on_hover_text("Mat4: w_axis, Vec4: y");
-            ui.add(DragValue::new(&mut value.w_axis.z).speed(0.5))
-                .on_hover_text("Mat4: w_axis, Vec4: z");
+
+            ui.add(DragValue::new(&mut value.x_axis.w).speed(0.5))
+                .on_hover_text("Mat4: x_axis, Vec4: w");
+            ui.add(DragValue::new(&mut value.y_axis.w).speed(0.5))
+                .on_hover_text("Mat4: y_axis, Vec4: w");
+            ui.add(DragValue::new(&mut value.z_axis.w).speed(0.5))
+                .on_hover_text("Mat4: z_axis, Vec4: w");
             ui.add(DragValue::new(&mut value.w_axis.w).speed(0.5))
                 .on_hover_text("Mat4: w_axis, Vec4: w");
             ui.end_row();
