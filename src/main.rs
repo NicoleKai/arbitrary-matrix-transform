@@ -1,30 +1,110 @@
-use bevy::prelude::*;
+use std::{f64::consts::PI, sync::Arc};
+
+use bevy::{pbr::DirectionalLightShadowMap, prelude::*};
 use bevy_egui::{
-    egui::{self, Slider, Ui},
+    egui::{self, DragValue, Ui},
     EguiContexts,
 };
-use static_math::{self, DualQuaternion};
+use strum::EnumIter;
+use strum::IntoEnumIterator;
 
-#[derive(Clone)]
-/// Contains quat control inputs for slider parameters
-/// There is an instance of one of these for every segment
-struct DualQuatCtrls {
-    theta: f32,
-    rot: Vec3,
-    rigid_body_comps: Vec3,
+impl Into<CtrlId> for usize {
+    fn into(self) -> CtrlId {
+        CtrlId(self)
+    }
 }
 
-/// Default state of DualQuatCtrls
-/// Each internal value is default, with the exception of theta, because of math shenanigans
-impl Default for DualQuatCtrls {
-    fn default() -> Self {
-        Self {
-            // Theta causes a weird singularity where the other transforms seem to depend on it for transformation magnitude,
-            // but it also transforms the segment position across other axes.
-            // Setting it to 0.001 and magnifying inputs seemed like the best way to get the demo usable for now
-            theta: 0.001,
-            rot: Vec3::default(),
-            rigid_body_comps: Vec3::default(),
+#[derive(Hash, Clone, PartialEq, Eq, Debug)]
+struct CtrlId(usize);
+
+#[derive(Clone, Default, Debug, EnumIter, Eq, PartialEq, strum::Display)]
+enum CtrlMode {
+    #[default]
+    Normal,
+    Sin,
+    NegSin,
+    Cos,
+    NegCos,
+    Tan,
+    NegTan,
+}
+
+impl CtrlMode {
+    // fn get_color(&self) -> Color32 {
+    //     match self {
+    //         CtrlMode::Normal => Color32::default(),
+    //         CtrlMode::Sin => Color32::LIGHT_GRAY,
+    //         CtrlMode::Cos => Color32::BROWN,
+    //         CtrlMode::Tan => Color32::YELLOW,
+    //     }
+    // }
+
+    fn get_str(&self) -> &str {
+        match self {
+            CtrlMode::Normal => "",
+            CtrlMode::Sin => "s",
+            CtrlMode::NegSin => "-s",
+            CtrlMode::Cos => "c",
+            CtrlMode::NegCos => "-c",
+            CtrlMode::Tan => "t",
+            CtrlMode::NegTan => "-t",
+        }
+    }
+
+    fn run_mode(&self, v: f32) -> f32 {
+        match self {
+            CtrlMode::Normal => v,
+            CtrlMode::Sin => v.sin(),
+            CtrlMode::NegSin => (-(v.abs())).sin(),
+            CtrlMode::Cos => v.cos(),
+            CtrlMode::NegCos => (-(v.abs())).cos(),
+            CtrlMode::Tan => v.tan(),
+            CtrlMode::NegTan => (-(v.abs())).tan(),
+        }
+    }
+
+    // fn toggle(&mut self) {
+    //     let first = Self::iter().next().expect("Could not get first value!");
+
+    //     let next = Self::iter()
+    //         .skip_while(|x| *self != *x)
+    //         .skip(1)
+    //         .next()
+    //         .unwrap_or(first);
+    //     dbg!(&next);
+    //     *self = next;
+    // }
+}
+
+#[derive(Debug, Clone, Default)]
+struct CtrlState {
+    is_changed: bool,
+    mode: CtrlMode,
+    default_value: f32,
+    value: f32,
+}
+
+impl CtrlState {
+    fn reset_value(&mut self) {
+        self.value = self.default_value;
+    }
+}
+
+const FOUR_PI: f64 = PI * 4.;
+
+#[derive(Debug, Default, Clone)]
+struct CtrlsState(std::collections::HashMap<CtrlId, CtrlState>);
+
+impl CtrlsState {
+    fn reset_modes(&mut self) {
+        for (_id, state) in self.0.iter_mut() {
+            state.mode = CtrlMode::default();
+        }
+    }
+
+    fn reset_values(&mut self) {
+        for (_id, state) in self.0.iter_mut() {
+            state.reset_value();
         }
     }
 }
@@ -33,89 +113,20 @@ impl Default for DualQuatCtrls {
 // As EGUI is immediate mode, we have to maintain the state of the GUI ourselves
 #[derive(Resource, Default, Clone)]
 struct UiState {
-    // TODO: replace with Vec of DualQuatCtrls so that code is more scalable
-    dual_quat1: DualQuatCtrls,
-    dual_quat2: DualQuatCtrls,
-    dual_quat3: DualQuatCtrls,
+    mat_transform: Mat4,
+    ctrls_state: CtrlsState,
+    theta: f32,
+    ambient_brightness: f32,
 }
 
-/// Transformable components have `id` and `node_transform`
-/// `id` tracks which component it is, and `node_transform` helps us e.g. offset specific meshes in the mesh group
-#[derive(Component, Default, Debug)]
+// A dummy struct used for Query-ing the cube entity, for altering its transform.
+#[derive(Component)]
 struct Transformable {
-    node_transform: Transform,
-    id: usize,
+    transform: Transform,
 }
 
-impl Transformable {
-    fn new(id: usize, node_transform: Transform) -> Self {
-        Self { node_transform, id }
-    }
-    fn new_default(id: usize) -> Self {
-        Self {
-            node_transform: Transform::default(),
-            id,
-        }
-    }
-}
-
-/// A trait for custom `from` function calls against externally defined types
-/// We need this because Rust does not allow us to implement traits from other crates against types from other crates.
-pub trait InternalFrom<T>: Sized {
-    fn ext_from(value: T) -> Self;
-}
-
-impl InternalFrom<Quat> for static_math::Quaternion<f32> {
-    fn ext_from(quat: Quat) -> Self {
-        static_math::Quaternion::new_from(quat.x, quat.y, quat.z, quat.w)
-    }
-}
-
-impl InternalFrom<static_math::Quaternion<f32>> for Quat {
-    fn ext_from(quaternion: static_math::Quaternion<f32>) -> Self {
-        let real: f32 = quaternion.real();
-        let imaginary: static_math::V3<f32> = quaternion.imag();
-        Quat::from_xyzw(imaginary[0], imaginary[1], imaginary[2], real)
-    }
-}
-
-// impl InternalFrom<static_math::matrix3x3::M33<f32>> for Mat3 {
-//     fn ext_from(static_mat3: static_math::matrix3x3::M33<f32>) -> Self {
-//         let s = static_mat3.get_rows();
-//         let arr: [f32; 9] = [
-//             s[0][0], s[0][1], s[0][2], s[1][0], s[1][1], s[1][2], s[2][0], s[2][1], s[2][2],
-//         ];
-//         // TODO: check if we need to transpose
-//         Self::from_cols_array(&arr)
-//     }
-// }
-
-// trait Vec3Ext {
-//     fn mul_all(&self, rhs: f32) -> Vec3;
-// }
-
-// impl Vec3Ext for Vec3 {
-//     fn mul_all(&self, rhs: f32) -> Vec3 {
-//         Vec3::new(self.x * rhs, self.y * rhs, self.z * rhs)
-//     }
-// }
-// impl InternalFrom<static_math::matrix3x3::M33<f32>> for Mat3 {
-//     fn ext_from(static_mat3: static_math::matrix3x3::M33<f32>) -> Self {
-//         let s = static_mat3.get_rows();
-//         let arr: [f32; 9] = [
-//             s[0][0], s[0][1], s[0][2], s[1][0], s[1][1], s[1][2], s[2][0], s[2][1], s[2][2],
-//         ];
-//         // TODO: check if we need to transpose
-//         Self::from_cols_array(&arr)
-//     }
-// }
-
-// impl InternalFrom<Mat3> for static_math::matrix3x3::M33<f32> {
-//     fn ext_from(m: Mat3) -> Self {
-//         let m = m.to_cols_array_2d();
-//         Self::new([m[0], m[1], m[2]])
-//     }
-// }
+#[derive(Resource, Default)]
+struct AssetsLoading(Vec<HandleUntyped>);
 
 // Main entrypoint
 fn main() {
@@ -124,16 +135,19 @@ fn main() {
         // Bevy plugins
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Quaternion Forward Kinematics Demo".to_string(),
+                title: "Matrix Manipulation Demo".to_string(),
                 ..Default::default()
             }),
             ..Default::default()
         }))
+        .insert_resource(DirectionalLightShadowMap { size: 4096 })
         .add_plugins(bevy_egui::EguiPlugin)
         // Systems (functions that are called at regular intervals)
         .add_systems(Startup, setup)
-        .add_systems(Update, transform_ui)
+        .add_systems(Update, ui_elements)
+        .add_systems(Update, ui_loading)
         // Resources (live data that can be accessed from any system)
+        .init_resource::<AssetsLoading>()
         .init_resource::<UiState>()
         .run(); // Event loop etc occurs here
 }
@@ -173,249 +187,234 @@ impl NewMesh for Mesh {
 // Setup basic facilities
 fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    // mut joint_trans: ResMut<JointTrans>,
+    mut ambient_light: ResMut<AmbientLight>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    // mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
+    mut loading: ResMut<AssetsLoading>,
 ) {
-    let material = materials.add(Color::WHITE.into());
-    let transform = Transform::from_translation(Vec3::ZERO);
-
-    // Build all three segments from groups of PbrBundle spawns
-    for i in 0..3 {
-        let arm_transform = Transform::from_xyz(0.0, 0.0, -2.0);
-        let mesh_base = meshes.add(Mesh::new_typical_cylinder(1.5, 1.));
-        let mesh_middle = meshes.add(Mesh::new_typical_cylinder(0.5, 2.));
-        let mesh_arm = meshes.add(Mesh::new_box(1.0, 0.9, 4.0));
-
-        commands.spawn((
-            PbrBundle {
-                mesh: mesh_base,
-                material: material.clone(),
-                transform,
-                ..default()
-            },
-            Transformable::new_default(i),
-        ));
-
-        commands.spawn((
-            PbrBundle {
-                mesh: mesh_middle,
-                material: material.clone(),
-                transform,
-                ..default()
-            },
-            Transformable::new_default(i),
-        ));
-
-        commands.spawn((
-            PbrBundle {
-                mesh: mesh_arm,
-                material: material.clone(),
-                transform: arm_transform,
-                ..default()
-            },
-            Transformable::new(i, arm_transform),
-        ));
-    }
-
-    // Camera is necessary to render anything
+    ambient_light.color = Color::WHITE;
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(0.0, 10.0, 20.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     });
 
-    // Spawn a light so that it's easier to see the cube
     commands.spawn(PointLightBundle {
         transform: Transform::from_translation(Vec3::ONE * 3.0),
         ..default()
     });
+
+    let foxy_handle = asset_server.load("Foxy.gltf#Scene0");
+    loading.0.push(foxy_handle.clone_untyped());
+
+    commands.spawn((
+        SceneBundle {
+            scene: foxy_handle,
+            transform: Transform::default(),
+            ..default()
+        },
+        Transformable {
+            transform: Transform::from_scale(Vec3::splat(10.))
+                .with_translation(Vec3::new(0., -10., -3.)),
+        },
+    ));
 }
 
-trait TensorProdVec3 {
-    fn tensor_prod(&self, rhs: Self) -> Mat3;
+trait EguiExtras {
+    fn matrix_drag(
+        &mut self,
+        id: impl Into<CtrlId>,
+        s: &mut CtrlsState,
+        value: &mut f32,
+        default_value: f32,
+        hover_text: impl Into<String>,
+    );
 }
 
-impl TensorProdVec3 for Vec3 {
-    fn tensor_prod(&self, rhs: Self) -> Mat3 {
-        Mat3 {
-            x_axis: self.x * rhs,
-            y_axis: self.y * rhs,
-            z_axis: self.z * rhs,
+impl EguiExtras for Ui {
+    #[inline]
+    fn matrix_drag(
+        &mut self,
+        id: impl Into<CtrlId>,
+        s: &mut CtrlsState,
+        sync_value: &mut f32,
+        default_value: f32,
+        hover_text: impl Into<String>,
+    ) {
+        let id: CtrlId = id.into();
+        if !s.0.contains_key(&id) {
+            s.0.insert(
+                id.clone(),
+                CtrlState {
+                    value: default_value,
+                    default_value,
+                    ..Default::default()
+                },
+            );
         }
+        let ctrl_state = s.0.get_mut(&id).expect("Wha! How? O_o");
+        let rep_seg = ctrl_state.mode.get_str();
+        let hover_text: String = hover_text.into();
+        let drag = DragValue::new(&mut ctrl_state.value)
+            .speed(0.02)
+            .prefix(rep_seg)
+            .fixed_decimals(2);
+        let handle = self.add(drag);
+        if handle.changed() {
+            ctrl_state.is_changed = true;
+        }
+        if ctrl_state.is_changed {
+            ctrl_state.value = ctrl_state.mode.run_mode(ctrl_state.value);
+            ctrl_state.is_changed = false;
+        }
+
+        handle.on_hover_text(hover_text).context_menu(|ui| {
+            for possible_modes in CtrlMode::iter() {
+                if ui
+                    .radio_value(
+                        &mut ctrl_state.mode,
+                        possible_modes.clone(),
+                        possible_modes.to_string(),
+                    )
+                    .clicked()
+                {
+                    ctrl_state.mode = possible_modes;
+                }
+            }
+        });
+        *sync_value = ctrl_state.value;
     }
 }
 
-/// Trigonometric functions implemented for Bevy's Vec3 type
-/// TODO: make exhaustive, move into its own module
-trait TrigVec3 {
-    fn sin(&self) -> Vec3;
-    fn asin(&self) -> Vec3;
-    fn cos(&self) -> Vec3;
-    fn acos(&self) -> Vec3;
-    fn tan(&self) -> Vec3;
+#[inline]
+fn mat4_ui<'a>(ui: &mut Ui, ui_state: &mut UiState, value: &mut Mat4) {
+    let s = &mut ui_state.ctrls_state;
+    ui.strong("Direct Matrix Control");
+    ui.group(|ui| {
+        egui::Grid::new("mat4_grid").show(ui, |ui| {
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "row");
+            ui.colored_label(egui::Color32::GREEN, "i-hat");
+            ui.colored_label(egui::Color32::RED, "j-hat");
+            ui.colored_label(egui::Color32::from_rgb(0, 128, 128), "k-hat");
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "trans");
+            ui.end_row();
+
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "X");
+            ui.matrix_drag(0, s, &mut value.x_axis.x, 1.0, "Mat4: x_axis, Vec4: x");
+            ui.matrix_drag(1, s, &mut value.x_axis.y, 0., "Mat4: x_axis, Vec4: y");
+            ui.matrix_drag(2, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
+            ui.matrix_drag(3, s, &mut value.w_axis.x, 0., "Mat4: w_axis, Vec4: x");
+            ui.end_row();
+
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Y");
+            ui.matrix_drag(4, s, &mut value.y_axis.x, 0., "Mat4: y_axis, Vec4: x");
+            ui.matrix_drag(5, s, &mut value.y_axis.y, 1.0, "Mat4: y_axis, Vec4: y");
+            ui.matrix_drag(6, s, &mut value.y_axis.z, 0., "Mat4: y_axis, Vec4: z");
+            ui.matrix_drag(7, s, &mut value.w_axis.y, 0., "Mat4: w_axis, Vec4: y");
+            ui.end_row();
+
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Z");
+            ui.matrix_drag(8, s, &mut value.z_axis.x, 0., "Mat4: z_axis, Vec4: x");
+            ui.matrix_drag(9, s, &mut value.z_axis.y, 0., "Mat4: z_axis, Vec4: y");
+            ui.matrix_drag(10, s, &mut value.z_axis.z, 1.0, "Mat4: z_axis, Vec4: z");
+            ui.matrix_drag(11, s, &mut value.w_axis.z, 0., "Mat4: w_axis, Vec4: z");
+            ui.end_row();
+
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "W");
+            ui.matrix_drag(12, s, &mut value.x_axis.w, 0., "Mat4: x_axis, Vec4: w");
+            ui.matrix_drag(13, s, &mut value.y_axis.w, 0., "Mat4: y_axis, Vec4: w");
+            ui.matrix_drag(14, s, &mut value.z_axis.w, 0., "Mat4: z_axis, Vec4: w");
+            ui.matrix_drag(15, s, &mut value.w_axis.w, 1.0, "Mat4: w_axis, Vec4: w");
+            ui.end_row();
+        });
+        ui.separator();
+        ui.horizontal(|ui| {
+            if ui.button("Reset All").clicked() {
+                *s = CtrlsState::default();
+            }
+            if ui.button("Reset Matrix Values").clicked() {
+                s.reset_values();
+            }
+            if ui.button("Reset Mode Selections").clicked() {
+                s.reset_modes();
+            }
+        });
+    });
+    ui.separator();
+    ui.strong("High-level Controls");
+    ui.horizontal(|ui| {
+        let label = ui.label("Theta");
+        let handle = ui
+            .add(
+                DragValue::new(&mut ui_state.theta)
+                    .speed(0.01)
+                    .clamp_range(-FOUR_PI..=FOUR_PI),
+            )
+            .labelled_by(label.id);
+        if handle.changed() {
+            for (_, state) in ui_state.ctrls_state.0.iter_mut() {
+                match state.mode {
+                    CtrlMode::Normal => {}
+                    _ => {
+                        state.value = ui_state.theta;
+                        state.is_changed = true;
+                    }
+                }
+            }
+        }
+    });
+    ui.separator();
+    ui.strong("Matrix Info");
+    ui.label(format!("Determinant: {}", value.determinant()))
+        .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
 }
 
-impl TrigVec3 for Vec3 {
-    fn sin(&self) -> Vec3 {
-        Vec3 {
-            x: self.x.sin(),
-            y: self.y.sin(),
-            z: self.z.sin(),
-        }
-    }
-
-    fn cos(&self) -> Vec3 {
-        Vec3 {
-            x: self.x.cos(),
-            y: self.y.cos(),
-            z: self.z.cos(),
-        }
-    }
-
-    fn asin(&self) -> Vec3 {
-        Vec3 {
-            x: self.x.asin(),
-            y: self.y.asin(),
-            z: self.z.asin(),
-        }
-    }
-
-    fn acos(&self) -> Vec3 {
-        Vec3 {
-            x: self.x.acos(),
-            y: self.y.acos(),
-            z: self.z.acos(),
-        }
-    }
-
-    fn tan(&self) -> Vec3 {
-        Vec3 {
-            x: self.x.tan(),
-            y: self.y.tan(),
-            z: self.z.tan(),
-        }
+fn ui_loading(
+    mut commands: Commands,
+    mut ctx: EguiContexts,
+    server: Res<AssetServer>,
+    loading: Option<Res<AssetsLoading>>,
+) {
+    if let Some(loading) = loading {
+        egui::Window::new("Loading").show(ctx.ctx_mut(), |ui| {
+            match server.get_group_load_state(loading.0.iter().map(|h| h.id())) {
+                bevy::asset::LoadState::Loaded => {
+                    commands.remove_resource::<AssetsLoading>();
+                }
+                _ => {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Spinner::new());
+                        ui.label("Still loading assets...");
+                    });
+                }
+            }
+        });
     }
 }
 
-// This is where the transform happens
-fn transform_ui(
-    mut transformables: Query<(&mut Transform, &mut Transformable)>,
+fn ui_elements(
+    mut transformable: Query<(&mut Transform, &Transformable)>,
     mut ui_state: ResMut<UiState>,
     mut ctx: EguiContexts,
+    mut ambient_light: ResMut<AmbientLight>,
 ) {
-    // A wrapper function for creating a slider with common settings,
-    // e.g. range, clamp, step_by, etc
-    fn common_slider<'a>(value: &'a mut f32, text: &str) -> Slider<'a> {
-        Slider::new(value, -100.0..=100.0)
-            .text(text)
-            .clamp_to_range(false)
-            .drag_value_speed(0.001)
-            .step_by(0.001)
-    }
-
-    // Closure function for adding entire groups of sliders at once
-    // One for each stage of the arm
-    let dual_quat_sliders = |ui: &mut Ui, dq_ctrls: &mut DualQuatCtrls| {
-        ui.add(common_slider(&mut dq_ctrls.theta, "theta"));
-        ui.add(common_slider(&mut dq_ctrls.rot.x, "pitch axis"));
-        ui.add(common_slider(&mut dq_ctrls.rot.y, "yaw axis"));
-        ui.add(common_slider(&mut dq_ctrls.rot.z, "roll axis"));
-        ui.add(common_slider(
-            &mut dq_ctrls.rigid_body_comps.x,
-            "Rigid Body X",
-        ));
-        ui.add(common_slider(
-            &mut dq_ctrls.rigid_body_comps.y,
-            "Rigid Body Y",
-        ));
-        ui.add(common_slider(
-            &mut dq_ctrls.rigid_body_comps.z,
-            "Rigid Body Z",
-        ));
-        if ui.button("Reset").clicked() {
-            *dq_ctrls = DualQuatCtrls::default();
-        }
-    };
-    // The floating EGUI window
-    egui::Window::new("Dual quaternion control").show(ctx.ctx_mut(), |ui| {
-        // Note that the code inside this block is part of a closure, similar to lambdas in Python.
-
-        // Slider width style
-        ui.style_mut().spacing.slider_width = 450.0;
+    egui::Window::new("Controls").show(ctx.ctx_mut(), |ui| {
         // Sliders are added here, passed mutable access to the variables storing their states
-        dual_quat_sliders(ui, &mut ui_state.dual_quat1);
-        dual_quat_sliders(ui, &mut ui_state.dual_quat2);
-        dual_quat_sliders(ui, &mut ui_state.dual_quat3);
+        // Moooooom. The borrow checker is bullying me Y~Y
+        let mut cloned_ui_mat = ui_state.mat_transform;
+        mat4_ui(ui, &mut ui_state, &mut cloned_ui_mat);
+        ui_state.mat_transform = cloned_ui_mat;
+        ambient_light.brightness = ui_state.ambient_brightness;
+        ui.separator();
+        ui.strong("Display Settings");
+        ui.horizontal(|ui| {
+            let label = ui.label("Ambient Brightness:");
+            ui.add(DragValue::new(&mut ui_state.ambient_brightness).speed(0.001))
+                .labelled_by(label.id);
+        });
     });
 
-    // Closure function for computing dual quaternion values from control values
-    let dq_from_ctrls = |ctrls: &DualQuatCtrls| {
-        // Note that we are scaling up rotation by 100x to avoid some singularities with theta
-        let rot = ctrls.rot * 100.0;
-        let theta = ctrls.theta;
-
-        // Building up the dual quaternion in portions
-
-        // real quat XYZ
-        let real_quat = ((theta * rot) / 2.0).sin();
-        // real quat W
-        let real_quat_w = (theta / 2.0).cos();
-        // 'imaginary' quat xyz
-        let imag_quat = (0.5 * ctrls.rigid_body_comps) * (theta / 2.0).cos();
-        // note that we skip the w of the imaginary quat
-
-        // Final assembly, and spit it out
-        DualQuaternion::new_from_array([
-            // real quat refers to the roll/pitch/yaw of the axis.
-            real_quat.x,
-            real_quat.y,
-            real_quat.z,
-            // real quat w is how big of a turn after you get the axis to the new location.
-            real_quat_w,
-            // This is translation.
-            imag_quat.x,
-            imag_quat.y,
-            imag_quat.z,
-        ])
-    };
-
-    // Compute dual quaternions from the control values
-    let dq1 = dq_from_ctrls(&ui_state.dual_quat1);
-    let dq2 = dq_from_ctrls(&ui_state.dual_quat2);
-    let dq3 = dq_from_ctrls(&ui_state.dual_quat3);
-
-    let base_dual_quat = DualQuaternion::<f32>::one();
-
-    // Iterate over all transformables
-    for (mut transform, transformable) in &mut transformables {
-        // Transformable contains `id` and node_transform`
-        // Here I am matching against `id` to do dual quaternion multiplication
-        // TODO: replace logic with iterator & `Vec<DualQuaternion>`
-        let dq = match transformable.id {
-            0 => base_dual_quat * dq1,
-            1 => base_dual_quat * dq1 * dq2,
-            2 => base_dual_quat * dq1 * dq2 * dq3,
-            _ => {
-                panic!("wrong id gfy");
-            }
-        };
-
-        // This is where we build the Bevy transform from the dual quaternion
-        let quat_trans = Transform {
-            rotation: Quat::ext_from(dq.real()).normalize(),
-            translation: Quat::ext_from(dq.dual()).xyz(),
-            scale: Vec3::ONE,
-        };
-
-        // Finally, we are building the arm transform. Each arm is offset from the previous by a fixed amount, calculated from its ID
-        // TODO: replace with per-segment transform, with dedicated segment Component struct.
-        let arm_trans = match transformable.id {
-            0 => Transform::default(),
-            1.. => Transform::from_translation(Vec3::new(0.0, 0.0, transformable.id as f32 * 5.0)),
-            _ => panic!("crabs hatet his one neet trik"),
-        };
-
-        // Build final transform
-        *transform = quat_trans * arm_trans * transformable.node_transform;
+    for (mut transform, transformable) in &mut transformable {
+        *transform = transformable.transform * Transform::from_matrix(ui_state.mat_transform);
     }
 }
