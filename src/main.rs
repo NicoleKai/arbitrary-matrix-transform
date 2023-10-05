@@ -265,7 +265,6 @@ fn transform_ui(
                     }
                 }
             }
-            value.x_axis.x = ui_state.theta;
         }
     }
 
