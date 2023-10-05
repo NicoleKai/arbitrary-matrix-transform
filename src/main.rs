@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::{pbr::DirectionalLightShadowMap, prelude::*};
 use bevy_egui::{
     egui::{self, Color32, DragValue, Slider, Ui},
@@ -43,19 +45,32 @@ impl CtrlMode {
         }
     }
 
-    fn get_next(&self) -> Self {
+    fn run_mode(&self, v: f64) -> f64 {
+        match self {
+            CtrlMode::Normal => v,
+            CtrlMode::Sin => v.sin(),
+            CtrlMode::Cos => v.cos(),
+            CtrlMode::Tan => v.tan(),
+        }
+    }
+
+    fn toggle(&mut self) {
         let first = Self::iter().next().expect("Could not get first value!");
-        dbg!(&first);
-        Self::iter()
+
+        let next = Self::iter()
             .skip_while(|x| *self != *x)
+            .skip(1)
             .next()
-            .unwrap_or(first)
+            .unwrap_or(first);
+        dbg!(&next);
+        *self = next;
     }
 }
 
 #[derive(Debug, Clone, Default)]
 struct CtrlState {
     mode: CtrlMode,
+    raw_value: f64,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -142,21 +157,31 @@ impl EguiExtras for Ui {
         hover_text: impl Into<String>,
     ) {
         let id: CtrlId = id.into();
-        let mut def = CtrlState::default();
-        let ctrl_state = s.0.get_mut(&id).unwrap_or(&mut def);
+        if !s.0.contains_key(&id) {
+            s.0.insert(id.clone(), CtrlState::default());
+        }
+
+        let ctrl_state = s.0.get_mut(&id).expect("Wha! How? O_o");
+        let rep_char = ctrl_state.mode.get_char();
+        let mode_runner = ctrl_state.mode.clone();
+        let ctrl_state = std::sync::Mutex::new(ctrl_state);
         let hover_text: String = hover_text.into();
         let drag = DragValue::new(value)
             .speed(0.08)
-            .custom_formatter(|n, _| format!("{}{:.2}", ctrl_state.mode.get_char(), n))
-            .custom_parser(|s| {
-                str::parse::<f64>(s.trim_start_matches(ctrl_state.mode.get_char())).ok()
-            });
+            .custom_formatter(|n, _| format!("{}{:.2}", rep_char, n))
+            .custom_parser(
+                |s| match str::parse::<f64>(s.trim_start_matches(rep_char)) {
+                    Ok(v) => {
+                        ctrl_state.lock().unwrap().raw_value = v;
+                        Some(mode_runner.run_mode(v))
+                    }
+                    Err(_) => None,
+                },
+            );
         let handle = self.add(drag);
         if handle.secondary_clicked() {
-            ctrl_state.mode = ctrl_state.mode.get_next();
+            ctrl_state.lock().unwrap().mode.toggle();
         }
-
-        ctrl_state.mode.get_color();
 
         handle.on_hover_text(hover_text);
     }
