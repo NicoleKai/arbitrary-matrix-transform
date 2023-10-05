@@ -95,7 +95,7 @@ impl CtrlsState {
         }
     }
 
-    fn reset_values(&self) {
+    fn reset_values(&mut self) {
         for (_id, state) in self.0.iter_mut() {
             state.value = 0.;
         }
