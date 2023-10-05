@@ -1,6 +1,11 @@
-use std::{f64::consts::PI, sync::Arc};
+use std::{f64::consts::PI, sync::Arc, time::Duration};
 
-use bevy::{pbr::DirectionalLightShadowMap, prelude::*};
+use bevy::{
+    core::FrameCount,
+    diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
+    pbr::DirectionalLightShadowMap,
+    prelude::*,
+};
 use bevy_egui::{
     egui::{self, DragValue, Ui},
     EguiContexts,
@@ -128,6 +133,13 @@ struct Transformable {
 #[derive(Resource, Default)]
 struct AssetsLoading(Vec<HandleUntyped>);
 
+#[derive(Resource, Default)]
+struct PgmStatus {
+    last_fps: f64,
+    last_frame_count: u32,
+    update_timer: Timer,
+}
+
 // Main entrypoint
 fn main() {
     // App entrypoint
@@ -146,9 +158,11 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(Update, ui_elements)
         .add_systems(Update, ui_loading)
+        .add_systems(Update, ui_status)
         // Resources (live data that can be accessed from any system)
         .init_resource::<AssetsLoading>()
         .init_resource::<UiState>()
+        .init_resource::<PgmStatus>()
         .run(); // Event loop etc occurs here
 }
 
@@ -194,6 +208,10 @@ fn setup(
     mut loading: ResMut<AssetsLoading>,
 ) {
     ambient_light.color = Color::WHITE;
+    commands.insert_resource(PgmStatus {
+        update_timer: Timer::new(Duration::from_millis(100), TimerMode::Repeating),
+        ..default()
+    });
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(0.0, 10.0, 20.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
@@ -392,6 +410,24 @@ fn ui_loading(
     }
 }
 
+fn ui_status(
+    mut ctx: EguiContexts,
+    time: Res<Time>,
+    frame_count: Res<FrameCount>,
+    mut status: ResMut<PgmStatus>,
+) {
+    let delta_frame_count = frame_count.0 - status.last_frame_count;
+    status.last_frame_count = frame_count.0;
+    status.update_timer.tick(time.delta());
+    if status.update_timer.finished() {
+        let t = time.raw_delta_seconds_f64();
+        let fps = delta_frame_count as f64 / t;
+        status.last_fps = fps;
+    }
+    egui::Window::new("Status").show(ctx.ctx_mut(), |ui| {
+        ui.label(format!("FPS: {:.2}", status.last_fps));
+    });
+}
 fn ui_elements(
     mut transformable: Query<(&mut Transform, &Transformable)>,
     mut ui_state: ResMut<UiState>,
