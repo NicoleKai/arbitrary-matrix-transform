@@ -92,7 +92,7 @@ struct CtrlsState(std::collections::HashMap<CtrlId, CtrlState>);
 struct UiState {
     mat_transform: Mat4,
     ctrls_state: CtrlsState,
-    rot_about_origin: f32,
+    theta: f32,
 }
 
 // A dummy struct used for Query-ing the cube entity, for altering its transform.
@@ -164,18 +164,17 @@ impl EguiExtras for Ui {
         &mut self,
         id: impl Into<CtrlId>,
         s: &mut CtrlsState,
-        value: &mut f32,
+        sync_value: &mut f32,
         hover_text: impl Into<String>,
     ) {
         let id: CtrlId = id.into();
         if !s.0.contains_key(&id) {
             s.0.insert(id.clone(), CtrlState::default());
         }
-
         let ctrl_state = s.0.get_mut(&id).expect("Wha! How? O_o");
         let rep_seg = ctrl_state.mode.get_str();
         let hover_text: String = hover_text.into();
-        let drag = DragValue::new(value)
+        let drag = DragValue::new(&mut ctrl_state.value)
             .speed(0.08)
             .custom_formatter(|n, _| format!("{}{:.2}", rep_seg, n))
             .custom_parser(|s| {
@@ -186,14 +185,14 @@ impl EguiExtras for Ui {
             });
         let handle = self.add(drag);
         if handle.changed() {
-            ctrl_state.value = *value;
-            *value = ctrl_state.mode.run_mode(*value);
+            ctrl_state.value = ctrl_state.mode.run_mode(ctrl_state.value);
         }
         if handle.secondary_clicked() {
             ctrl_state.mode.toggle();
         }
 
         handle.on_hover_text(hover_text);
+        *sync_value = ctrl_state.value;
     }
 }
 
@@ -253,9 +252,17 @@ fn transform_ui(
             value.determinant() // value.x_axis.x * value.y_axis.y * value.z_axis.z
         ))
         .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
-        let handle = ui.add(Slider::new(&mut ui_state.rot_about_origin, -6.28..=6.28));
+        let handle = ui.add(Slider::new(&mut ui_state.theta, -6.28..=6.28));
         if handle.changed() {
-            value.x_axis.x = ui_state.rot_about_origin;
+            for (_, state) in ui_state.ctrls_state.0.iter_mut() {
+                match state.mode {
+                    CtrlMode::Normal => {}
+                    _ => {
+                        state.value = ui_state.theta;
+                    }
+                }
+            }
+            value.x_axis.x = ui_state.theta;
         }
     }
 
