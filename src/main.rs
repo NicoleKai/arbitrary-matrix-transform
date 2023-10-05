@@ -45,7 +45,7 @@ impl CtrlMode {
         }
     }
 
-    fn run_mode(&self, v: f64) -> f64 {
+    fn run_mode(&self, v: f32) -> f32 {
         match self {
             CtrlMode::Normal => v,
             CtrlMode::Sin => v.sin(),
@@ -70,7 +70,7 @@ impl CtrlMode {
 #[derive(Debug, Clone, Default)]
 struct CtrlState {
     mode: CtrlMode,
-    raw_value: f64,
+    raw_value: f32,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -163,13 +163,13 @@ impl EguiExtras for Ui {
 
         let ctrl_state = s.0.get_mut(&id).expect("Wha! How? O_o");
         let rep_char = ctrl_state.mode.get_char();
-        let raw_value = ctrl_state.raw_value;
+        // let raw_value = ctrl_state.raw_value;
         // let mode_runner = ctrl_state.mode.clone();
-        let ctrl_state = std::sync::Mutex::new(ctrl_state);
+        // let ctrl_state = std::sync::Mutex::new(ctrl_state);
         let hover_text: String = hover_text.into();
         let drag = DragValue::new(value)
             .speed(0.08)
-            .custom_formatter(|n, _| format!("{}{:.2}", rep_char, raw_value))
+            .custom_formatter(|n, _| format!("{}{:.2}", rep_char, n))
             .custom_parser(
                 |s| str::parse::<f64>(s.trim_start_matches(rep_char)).ok(), //{
                                                                             // Ok(v) => {
@@ -182,9 +182,12 @@ impl EguiExtras for Ui {
                                                                             // },
             );
         let handle = self.add(drag);
-        if handle.changed() {}
+        if handle.changed() {
+            ctrl_state.raw_value = *value;
+            *value = ctrl_state.mode.run_mode(*value);
+        }
         if handle.secondary_clicked() {
-            ctrl_state.lock().unwrap().mode.toggle();
+            ctrl_state.mode.toggle();
         }
 
         handle.on_hover_text(hover_text);
