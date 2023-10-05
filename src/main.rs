@@ -135,7 +135,7 @@ fn main() {
         // Bevy plugins
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Quaternion transform demo".to_string(),
+                title: "Matrix Manipulation Demo".to_string(),
                 ..Default::default()
             }),
             ..Default::default()
