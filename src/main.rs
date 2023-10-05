@@ -163,22 +163,26 @@ impl EguiExtras for Ui {
 
         let ctrl_state = s.0.get_mut(&id).expect("Wha! How? O_o");
         let rep_char = ctrl_state.mode.get_char();
-        let mode_runner = ctrl_state.mode.clone();
+        let raw_value = ctrl_state.raw_value;
+        // let mode_runner = ctrl_state.mode.clone();
         let ctrl_state = std::sync::Mutex::new(ctrl_state);
         let hover_text: String = hover_text.into();
         let drag = DragValue::new(value)
             .speed(0.08)
-            .custom_formatter(|n, _| format!("{}{:.2}", rep_char, n))
+            .custom_formatter(|n, _| format!("{}{:.2}", rep_char, raw_value))
             .custom_parser(
-                |s| match str::parse::<f64>(s.trim_start_matches(rep_char)) {
-                    Ok(v) => {
-                        ctrl_state.lock().unwrap().raw_value = v;
-                        Some(mode_runner.run_mode(v))
-                    }
-                    Err(_) => None,
-                },
+                |s| str::parse::<f64>(s.trim_start_matches(rep_char)).ok(), //{
+                                                                            // Ok(v) => {
+                                                                            //     let mut guard = ctrl_state.lock().unwrap();
+                                                                            //     guard.raw_value = v;
+                                                                            //     dbg!("parse!");
+                                                                            //     Some(guard.mode.run_mode(guard.raw_value))
+                                                                            // }
+                                                                            // Err(_) => None,
+                                                                            // },
             );
         let handle = self.add(drag);
+        if handle.changed() {}
         if handle.secondary_clicked() {
             ctrl_state.lock().unwrap().mode.toggle();
         }
@@ -244,6 +248,7 @@ fn transform_ui(
         .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
         if ui.button("Reset").clicked() {
             *value = Mat4::default();
+            *s = CtrlsState::default();
         }
     }
 
