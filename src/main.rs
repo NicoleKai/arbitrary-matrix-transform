@@ -41,7 +41,7 @@ impl CtrlMode {
 
     fn get_char(&self) -> &str {
         match self {
-            CtrlMode::Normal => "n",
+            CtrlMode::Normal => "",
             CtrlMode::Sin => "s",
             CtrlMode::NegSin => "-s",
             CtrlMode::Cos => "c",
@@ -171,12 +171,24 @@ impl EguiExtras for Ui {
         }
 
         let ctrl_state = s.0.get_mut(&id).expect("Wha! How? O_o");
-        let rep_char = ctrl_state.mode.get_char();
+        let rep_seg = ctrl_state.mode.get_char();
         let hover_text: String = hover_text.into();
         let drag = DragValue::new(value)
             .speed(0.08)
-            .custom_formatter(|n, _| format!("{}{:.2}", rep_char, n))
-            .custom_parser(|s| str::parse::<f64>(s.trim_start_matches(rep_char)).ok());
+            .custom_formatter(|n, _| format!("{}{:.2}", rep_seg, n))
+            .custom_parser(|s| {
+                let cut = match &s[..2] {
+                    "s" => &s[1..],
+                    "-s" => &s[2..],
+                    "c" => &s[1..],
+                    "-c" => &s[2..],
+                    "t" => &s[1..],
+                    "-t" => &s[2..],
+                    _ => &s,
+                };
+                dbg!(&cut);
+                str::parse::<f64>(cut).ok()
+            });
         let handle = self.add(drag);
         if handle.changed() {
             ctrl_state.raw_value = *value;
