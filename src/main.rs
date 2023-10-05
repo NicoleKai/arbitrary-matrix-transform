@@ -199,6 +199,7 @@ impl EguiExtras for Ui {
         }
         if ctrl_state.is_changed {
             ctrl_state.value = ctrl_state.mode.run_mode(ctrl_state.value);
+            ctrl_state.is_changed = false;
         }
         if handle.secondary_clicked() {
             ctrl_state.mode.toggle();
