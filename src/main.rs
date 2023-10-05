@@ -148,7 +148,8 @@ fn setup(
             ..default()
         },
         Rotatable {
-            transform: Transform::from_scale(Vec3::splat(10.)),
+            transform: Transform::from_scale(Vec3::splat(10.))
+                .with_translation(Vec3::new(0., -10., 0.)),
         },
     ));
 }
