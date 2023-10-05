@@ -8,7 +8,7 @@ use bevy::{
 };
 use bevy_egui::{
     egui::{self, DragValue, Ui},
-    EguiContexts,
+    EguiContexts, EguiSettings,
 };
 use strum::EnumIter;
 use strum::IntoEnumIterator;
@@ -118,6 +118,7 @@ impl CtrlsState {
 // As EGUI is immediate mode, we have to maintain the state of the GUI ourselves
 #[derive(Resource, Clone)]
 struct UiState {
+    // scale: f64,
     mat_transform: Mat4,
     ctrls_state: CtrlsState,
     theta: f32,
@@ -127,6 +128,7 @@ struct UiState {
 impl Default for UiState {
     fn default() -> Self {
         Self {
+            // scale: 1.0,
             ambient_brightness: 0.25,
             // trying to do ..default() would cause a stack overflow here ;)
             mat_transform: default(),
@@ -171,6 +173,7 @@ fn main() {
         .add_systems(Update, ui_control)
         .add_systems(Update, ui_loading)
         .add_systems(Update, ui_status)
+        .add_systems(Update, keyboard_input)
         // Resources (live data that can be accessed from any system)
         .init_resource::<AssetsLoading>()
         .init_resource::<UiState>()
@@ -427,6 +430,7 @@ fn ui_status(
     time: Res<Time>,
     frame_count: Res<FrameCount>,
     mut status: ResMut<PgmStatus>,
+    // mut ui_state: ResMut<UiState>,
 ) {
     let delta_frame_count = frame_count.0 - status.last_frame_count;
     status.last_frame_count = frame_count.0;
@@ -438,8 +442,27 @@ fn ui_status(
     }
     egui::Window::new("Status").show(ctx.ctx_mut(), |ui| {
         ui.label(format!("FPS: {:.2}", status.last_fps));
+        // if ui
+        //     .add(
+        //         DragValue::new(&mut ui_state.scale)
+        //             .clamp_range(1.0..=3.0)
+        //             .speed(0.01),
+        //     )
+        //     .changed()
+        // {}
     });
 }
+
+fn keyboard_input(keys: Res<Input<KeyCode>>, mut egui_settings: ResMut<EguiSettings>) {
+    if keys.any_just_pressed([KeyCode::Equals, KeyCode::Plus]) {
+        egui_settings.scale_factor = (egui_settings.scale_factor + 0.1).clamp(1.0, 3.0);
+    }
+
+    if keys.any_just_pressed([KeyCode::Minus]) {
+        egui_settings.scale_factor = (egui_settings.scale_factor - 0.1).clamp(1.0, 3.0);
+    }
+}
+
 fn ui_control(
     mut transformable: Query<(&mut Transform, &Transformable)>,
     mut ui_state: ResMut<UiState>,
