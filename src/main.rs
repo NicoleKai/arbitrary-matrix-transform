@@ -312,7 +312,6 @@ fn mat4_ui<'a>(ui: &mut Ui, ui_state: &mut UiState, value: &mut Mat4) {
                     .clamp_range(-FOUR_PI..=FOUR_PI),
             )
             .labelled_by(label.id);
-        // let handle = ui.matrix_drag(, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
         if handle.changed() {
             for (_, state) in ui_state.ctrls_state.0.iter_mut() {
                 match state.mode {
@@ -325,8 +324,8 @@ fn mat4_ui<'a>(ui: &mut Ui, ui_state: &mut UiState, value: &mut Mat4) {
             }
         }
     });
-    ui.strong("Info");
     ui.separator();
+    ui.strong("Matrix Info");
     ui.label(format!("Determinant: {}", value.determinant()))
         .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
 }
