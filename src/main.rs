@@ -79,6 +79,7 @@ impl CtrlMode {
 
 #[derive(Debug, Clone, Default)]
 struct CtrlState {
+    is_changed: bool,
     mode: CtrlMode,
     value: f32,
 }
@@ -174,6 +175,7 @@ impl EguiExtras for Ui {
             s.0.insert(
                 id.clone(),
                 CtrlState {
+                    is_changed: false,
                     mode: CtrlMode::default(),
                     value: default_value,
                 },
@@ -193,6 +195,9 @@ impl EguiExtras for Ui {
             });
         let handle = self.add(drag);
         if handle.changed() {
+            ctrl_state.is_changed = true;
+        }
+        if ctrl_state.is_changed {
             ctrl_state.value = ctrl_state.mode.run_mode(ctrl_state.value);
         }
         if handle.secondary_clicked() {
@@ -270,6 +275,7 @@ fn transform_ui(
                     CtrlMode::Normal => {}
                     _ => {
                         state.value = ui_state.theta;
+                        state.is_changed = true;
                     }
                 }
             }
