@@ -154,6 +154,7 @@ trait EguiExtras {
         id: impl Into<CtrlId>,
         s: &mut CtrlsState,
         value: &mut f32,
+        default_value: f32,
         hover_text: impl Into<String>,
     );
 }
@@ -165,11 +166,18 @@ impl EguiExtras for Ui {
         id: impl Into<CtrlId>,
         s: &mut CtrlsState,
         sync_value: &mut f32,
+        default_value: f32,
         hover_text: impl Into<String>,
     ) {
         let id: CtrlId = id.into();
         if !s.0.contains_key(&id) {
-            s.0.insert(id.clone(), CtrlState::default());
+            s.0.insert(
+                id.clone(),
+                CtrlState {
+                    mode: CtrlMode::default(),
+                    value: default_value,
+                },
+            );
         }
         let ctrl_state = s.0.get_mut(&id).expect("Wha! How? O_o");
         let rep_seg = ctrl_state.mode.get_str();
@@ -215,31 +223,31 @@ fn transform_ui(
                 ui.end_row();
 
                 ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "X");
-                ui.ext_drag(0, s, &mut value.x_axis.x, "Mat4: x_axis, Vec4: x");
-                ui.ext_drag(1, s, &mut value.x_axis.y, "Mat4: x_axis, Vec4: y");
-                ui.ext_drag(2, s, &mut value.x_axis.z, "Mat4: x_axis, Vec4: z");
-                ui.ext_drag(3, s, &mut value.w_axis.x, "Mat4: w_axis, Vec4: x");
+                ui.ext_drag(0, s, &mut value.x_axis.x, 1.0, "Mat4: x_axis, Vec4: x");
+                ui.ext_drag(1, s, &mut value.x_axis.y, 0., "Mat4: x_axis, Vec4: y");
+                ui.ext_drag(2, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
+                ui.ext_drag(3, s, &mut value.w_axis.x, 0., "Mat4: w_axis, Vec4: x");
                 ui.end_row();
 
                 ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Y");
-                ui.ext_drag(4, s, &mut value.y_axis.x, "Mat4: y_axis, Vec4: x");
-                ui.ext_drag(5, s, &mut value.y_axis.y, "Mat4: y_axis, Vec4: y");
-                ui.ext_drag(6, s, &mut value.y_axis.z, "Mat4: y_axis, Vec4: z");
-                ui.ext_drag(7, s, &mut value.w_axis.y, "Mat4: w_axis, Vec4: y");
+                ui.ext_drag(4, s, &mut value.y_axis.x, 0., "Mat4: y_axis, Vec4: x");
+                ui.ext_drag(5, s, &mut value.y_axis.y, 1.0, "Mat4: y_axis, Vec4: y");
+                ui.ext_drag(6, s, &mut value.y_axis.z, 0., "Mat4: y_axis, Vec4: z");
+                ui.ext_drag(7, s, &mut value.w_axis.y, 0., "Mat4: w_axis, Vec4: y");
                 ui.end_row();
 
                 ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Z");
-                ui.ext_drag(8, s, &mut value.z_axis.x, "Mat4: z_axis, Vec4: x");
-                ui.ext_drag(9, s, &mut value.z_axis.y, "Mat4: z_axis, Vec4: y");
-                ui.ext_drag(10, s, &mut value.z_axis.z, "Mat4: z_axis, Vec4: z");
-                ui.ext_drag(11, s, &mut value.w_axis.z, "Mat4: w_axis, Vec4: z");
+                ui.ext_drag(8, s, &mut value.z_axis.x, 0., "Mat4: z_axis, Vec4: x");
+                ui.ext_drag(9, s, &mut value.z_axis.y, 0., "Mat4: z_axis, Vec4: y");
+                ui.ext_drag(10, s, &mut value.z_axis.z, 1.0, "Mat4: z_axis, Vec4: z");
+                ui.ext_drag(11, s, &mut value.w_axis.z, 0., "Mat4: w_axis, Vec4: z");
                 ui.end_row();
 
                 ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "W");
-                ui.ext_drag(12, s, &mut value.x_axis.w, "Mat4: x_axis, Vec4: w");
-                ui.ext_drag(13, s, &mut value.y_axis.w, "Mat4: y_axis, Vec4: w");
-                ui.ext_drag(14, s, &mut value.z_axis.w, "Mat4: z_axis, Vec4: w");
-                ui.ext_drag(15, s, &mut value.w_axis.w, "Mat4: w_axis, Vec4: w");
+                ui.ext_drag(12, s, &mut value.x_axis.w, 0., "Mat4: x_axis, Vec4: w");
+                ui.ext_drag(13, s, &mut value.y_axis.w, 0., "Mat4: y_axis, Vec4: w");
+                ui.ext_drag(14, s, &mut value.z_axis.w, 0., "Mat4: z_axis, Vec4: w");
+                ui.ext_drag(15, s, &mut value.w_axis.w, 1.0, "Mat4: w_axis, Vec4: w");
                 ui.end_row();
             });
         });
