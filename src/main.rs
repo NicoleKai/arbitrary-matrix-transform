@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, sync::Arc};
+use std::{f64::consts::PI, sync::Arc};
 
 use bevy::{pbr::DirectionalLightShadowMap, prelude::*};
 use bevy_egui::{
@@ -83,10 +83,24 @@ struct CtrlState {
     value: f32,
 }
 
-const FOUR_PI: f32 = PI * 4.;
+const FOUR_PI: f64 = PI * 4.;
 
 #[derive(Debug, Default, Clone)]
 struct CtrlsState(std::collections::HashMap<CtrlId, CtrlState>);
+
+impl CtrlsState {
+    fn reset_modes(&mut self) {
+        for (_id, state) in self.0.iter_mut() {
+            state.mode = CtrlMode::default();
+        }
+    }
+
+    fn reset_values(&self) {
+        for (_id, state) in self.0.iter_mut() {
+            state.value = 0.;
+        }
+    }
+}
 
 // This struct stores the values for the sliders, so that they persist between frames
 // As EGUI is immediate mode, we have to maintain the state of the GUI ourselves
@@ -231,100 +245,99 @@ fn transform_ui(
 ) {
     #[inline]
     fn mat4_ui<'a>(ui: &mut Ui, ui_state: &mut UiState, value: &mut Mat4) {
+        let s = &mut ui_state.ctrls_state;
+        ui.strong("Direct Matrix Control");
         ui.group(|ui| {
-            let s = &mut ui_state.ctrls_state;
-            ui.label("Direct Matrix Control");
-            ui.group(|ui| {
-                egui::Grid::new("mat4_grid").show(ui, |ui| {
-                    ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "row");
-                    ui.colored_label(egui::Color32::GREEN, "i-hat");
-                    ui.colored_label(egui::Color32::RED, "j-hat");
-                    ui.colored_label(egui::Color32::from_rgb(0, 128, 128), "k-hat");
-                    ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "trans");
-                    ui.end_row();
+            egui::Grid::new("mat4_grid").show(ui, |ui| {
+                ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "row");
+                ui.colored_label(egui::Color32::GREEN, "i-hat");
+                ui.colored_label(egui::Color32::RED, "j-hat");
+                ui.colored_label(egui::Color32::from_rgb(0, 128, 128), "k-hat");
+                ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "trans");
+                ui.end_row();
 
-                    ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "X");
-                    ui.matrix_drag(0, s, &mut value.x_axis.x, 1.0, "Mat4: x_axis, Vec4: x");
-                    ui.matrix_drag(1, s, &mut value.x_axis.y, 0., "Mat4: x_axis, Vec4: y");
-                    ui.matrix_drag(2, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
-                    ui.matrix_drag(3, s, &mut value.w_axis.x, 0., "Mat4: w_axis, Vec4: x");
-                    ui.end_row();
+                ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "X");
+                ui.matrix_drag(0, s, &mut value.x_axis.x, 1.0, "Mat4: x_axis, Vec4: x");
+                ui.matrix_drag(1, s, &mut value.x_axis.y, 0., "Mat4: x_axis, Vec4: y");
+                ui.matrix_drag(2, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
+                ui.matrix_drag(3, s, &mut value.w_axis.x, 0., "Mat4: w_axis, Vec4: x");
+                ui.end_row();
 
-                    ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Y");
-                    ui.matrix_drag(4, s, &mut value.y_axis.x, 0., "Mat4: y_axis, Vec4: x");
-                    ui.matrix_drag(5, s, &mut value.y_axis.y, 1.0, "Mat4: y_axis, Vec4: y");
-                    ui.matrix_drag(6, s, &mut value.y_axis.z, 0., "Mat4: y_axis, Vec4: z");
-                    ui.matrix_drag(7, s, &mut value.w_axis.y, 0., "Mat4: w_axis, Vec4: y");
-                    ui.end_row();
+                ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Y");
+                ui.matrix_drag(4, s, &mut value.y_axis.x, 0., "Mat4: y_axis, Vec4: x");
+                ui.matrix_drag(5, s, &mut value.y_axis.y, 1.0, "Mat4: y_axis, Vec4: y");
+                ui.matrix_drag(6, s, &mut value.y_axis.z, 0., "Mat4: y_axis, Vec4: z");
+                ui.matrix_drag(7, s, &mut value.w_axis.y, 0., "Mat4: w_axis, Vec4: y");
+                ui.end_row();
 
-                    ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Z");
-                    ui.matrix_drag(8, s, &mut value.z_axis.x, 0., "Mat4: z_axis, Vec4: x");
-                    ui.matrix_drag(9, s, &mut value.z_axis.y, 0., "Mat4: z_axis, Vec4: y");
-                    ui.matrix_drag(10, s, &mut value.z_axis.z, 1.0, "Mat4: z_axis, Vec4: z");
-                    ui.matrix_drag(11, s, &mut value.w_axis.z, 0., "Mat4: w_axis, Vec4: z");
-                    ui.end_row();
+                ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Z");
+                ui.matrix_drag(8, s, &mut value.z_axis.x, 0., "Mat4: z_axis, Vec4: x");
+                ui.matrix_drag(9, s, &mut value.z_axis.y, 0., "Mat4: z_axis, Vec4: y");
+                ui.matrix_drag(10, s, &mut value.z_axis.z, 1.0, "Mat4: z_axis, Vec4: z");
+                ui.matrix_drag(11, s, &mut value.w_axis.z, 0., "Mat4: w_axis, Vec4: z");
+                ui.end_row();
 
-                    ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "W");
-                    ui.matrix_drag(12, s, &mut value.x_axis.w, 0., "Mat4: x_axis, Vec4: w");
-                    ui.matrix_drag(13, s, &mut value.y_axis.w, 0., "Mat4: y_axis, Vec4: w");
-                    ui.matrix_drag(14, s, &mut value.z_axis.w, 0., "Mat4: z_axis, Vec4: w");
-                    ui.matrix_drag(15, s, &mut value.w_axis.w, 1.0, "Mat4: w_axis, Vec4: w");
-                    ui.end_row();
-                });
+                ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "W");
+                ui.matrix_drag(12, s, &mut value.x_axis.w, 0., "Mat4: x_axis, Vec4: w");
+                ui.matrix_drag(13, s, &mut value.y_axis.w, 0., "Mat4: y_axis, Vec4: w");
+                ui.matrix_drag(14, s, &mut value.z_axis.w, 0., "Mat4: z_axis, Vec4: w");
+                ui.matrix_drag(15, s, &mut value.w_axis.w, 1.0, "Mat4: w_axis, Vec4: w");
+                ui.end_row();
             });
-            if ui.button("Reset").clicked() {
-                *value = Mat4::default();
-                *s = CtrlsState::default();
-            }
-            ui.label(format!(
-                "Determinant: {}",
-                value.determinant() // value.x_axis.x * value.y_axis.y * value.z_axis.z
-            ))
+            ui.separator();
+            ui.horizontal(|ui| {
+                if ui.button("Reset All").clicked() {
+                    *s = CtrlsState::default();
+                }
+                if ui.button("Reset Matrix Values").clicked() {
+                    s.reset_values();
+                }
+                if ui.button("Reset Mode Selections").clicked() {
+                    s.reset_modes();
+                }
+            });
+        });
+        ui.label(format!("Determinant: {}", value.determinant()))
             .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
 
-            ui.horizontal(|ui| {
-                let label = ui.label("Theta");
-                let handle = ui
-                    .add(
-                        DragValue::new(&mut ui_state.theta)
-                            .speed(0.01)
-                            .clamp_range(-6.28..=6.28),
-                    )
-                    .labelled_by(label.id);
-                // let handle = ui.matrix_drag(, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
-                if handle.changed() {
-                    for (_, state) in ui_state.ctrls_state.0.iter_mut() {
-                        match state.mode {
-                            CtrlMode::Normal => {}
-                            _ => {
-                                state.value = ui_state.theta;
-                                state.is_changed = true;
-                            }
+        ui.horizontal(|ui| {
+            let label = ui.label("Theta");
+            let handle = ui
+                .add(
+                    DragValue::new(&mut ui_state.theta)
+                        .speed(0.01)
+                        .clamp_range(-FOUR_PI..=FOUR_PI),
+                )
+                .labelled_by(label.id);
+            // let handle = ui.matrix_drag(, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
+            if handle.changed() {
+                for (_, state) in ui_state.ctrls_state.0.iter_mut() {
+                    match state.mode {
+                        CtrlMode::Normal => {}
+                        _ => {
+                            state.value = ui_state.theta;
+                            state.is_changed = true;
                         }
                     }
                 }
-            });
+            }
         });
     }
 
     // The floating EGUI window
     egui::Window::new("Controls").show(ctx.ctx_mut(), |ui| {
-        // Note that the code inside this block is part of a closure, similar to lambdas in Python.
-
-        // Slider width style
         // Sliders are added here, passed mutable access to the variables storing their states
         // Moooooom. The borrow checker is bullying me Y~Y
         let mut cloned_ui_mat = ui_state.mat_transform;
         mat4_ui(ui, &mut ui_state, &mut cloned_ui_mat);
         ui_state.mat_transform = cloned_ui_mat;
         ambient_light.brightness = ui_state.ambient_brightness;
-        ui.label("Display Settings");
-        ui.group(|ui| {
-            ui.horizontal(|ui| {
-                let label = ui.label("Ambient Brightness:");
-                ui.add(DragValue::new(&mut ui_state.ambient_brightness).speed(0.001))
-                    .labelled_by(label.id);
-            });
+        ui.separator();
+        ui.strong("Display Settings");
+        ui.horizontal(|ui| {
+            let label = ui.label("Ambient Brightness:");
+            ui.add(DragValue::new(&mut ui_state.ambient_brightness).speed(0.001))
+                .labelled_by(label.id);
         });
     });
 
