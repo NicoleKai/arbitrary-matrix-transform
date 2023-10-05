@@ -175,9 +175,8 @@ impl EguiExtras for Ui {
             s.0.insert(
                 id.clone(),
                 CtrlState {
-                    is_changed: false,
-                    mode: CtrlMode::default(),
                     value: default_value,
+                    ..Default::default()
                 },
             );
         }
@@ -201,11 +200,51 @@ impl EguiExtras for Ui {
             ctrl_state.value = ctrl_state.mode.run_mode(ctrl_state.value);
             ctrl_state.is_changed = false;
         }
-        if handle.secondary_clicked() {
-            ctrl_state.mode.toggle();
-        }
 
-        handle.on_hover_text(hover_text);
+        handle.on_hover_text(hover_text).context_menu(|ui| {
+            if ui
+                .radio_value(&mut ctrl_state.mode, CtrlMode::Normal, "Normal")
+                .clicked()
+            {
+                ctrl_state.mode = CtrlMode::Normal;
+            }
+            if ui
+                .radio_value(&mut ctrl_state.mode, CtrlMode::Sin, "Sin")
+                .clicked()
+            {
+                ctrl_state.mode = CtrlMode::Sin;
+            }
+            if ui
+                .radio_value(&mut ctrl_state.mode, CtrlMode::NegSin, "NegSin")
+                .clicked()
+            {
+                ctrl_state.mode = CtrlMode::NegSin;
+            }
+            if ui
+                .radio_value(&mut ctrl_state.mode, CtrlMode::Cos, "Cos")
+                .clicked()
+            {
+                ctrl_state.mode = CtrlMode::Cos;
+            }
+            if ui
+                .radio_value(&mut ctrl_state.mode, CtrlMode::NegCos, "NegCos")
+                .clicked()
+            {
+                ctrl_state.mode = CtrlMode::NegCos;
+            }
+            if ui
+                .radio_value(&mut ctrl_state.mode, CtrlMode::Tan, "Tan")
+                .clicked()
+            {
+                ctrl_state.mode = CtrlMode::Tan;
+            }
+            if ui
+                .radio_value(&mut ctrl_state.mode, CtrlMode::NegTan, "NegTan")
+                .clicked()
+            {
+                ctrl_state.mode = CtrlMode::NegTan;
+            }
+        });
         *sync_value = ctrl_state.value;
     }
 }
