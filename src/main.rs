@@ -22,26 +22,32 @@ enum CtrlMode {
     #[default]
     Normal,
     Sin,
+    NegSin,
     Cos,
+    NegCos,
     Tan,
+    NegTan,
 }
 
 impl CtrlMode {
-    fn get_color(&self) -> Color32 {
-        match self {
-            CtrlMode::Normal => Color32::default(),
-            CtrlMode::Sin => Color32::LIGHT_GRAY,
-            CtrlMode::Cos => Color32::BROWN,
-            CtrlMode::Tan => Color32::YELLOW,
-        }
-    }
+    // fn get_color(&self) -> Color32 {
+    //     match self {
+    //         CtrlMode::Normal => Color32::default(),
+    //         CtrlMode::Sin => Color32::LIGHT_GRAY,
+    //         CtrlMode::Cos => Color32::BROWN,
+    //         CtrlMode::Tan => Color32::YELLOW,
+    //     }
+    // }
 
-    fn get_char(&self) -> char {
+    fn get_char(&self) -> &str {
         match self {
-            CtrlMode::Normal => 'n',
-            CtrlMode::Sin => 's',
-            CtrlMode::Cos => 'c',
-            CtrlMode::Tan => 't',
+            CtrlMode::Normal => "n",
+            CtrlMode::Sin => "s",
+            CtrlMode::NegSin => "-s",
+            CtrlMode::Cos => "c",
+            CtrlMode::NegCos => "-c",
+            CtrlMode::Tan => "t",
+            CtrlMode::NegTan => "-t",
         }
     }
 
@@ -49,8 +55,11 @@ impl CtrlMode {
         match self {
             CtrlMode::Normal => v,
             CtrlMode::Sin => v.sin(),
+            CtrlMode::NegSin => (-v.abs()).sin(),
             CtrlMode::Cos => v.cos(),
+            CtrlMode::NegCos => (-v.abs()).cos(),
             CtrlMode::Tan => v.tan(),
+            CtrlMode::NegTan => (-v.abs()).tan(),
         }
     }
 
@@ -113,8 +122,8 @@ fn main() {
 // Setup basic facilities
 fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    // mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
     commands.spawn(Camera3dBundle {
@@ -163,24 +172,11 @@ impl EguiExtras for Ui {
 
         let ctrl_state = s.0.get_mut(&id).expect("Wha! How? O_o");
         let rep_char = ctrl_state.mode.get_char();
-        // let raw_value = ctrl_state.raw_value;
-        // let mode_runner = ctrl_state.mode.clone();
-        // let ctrl_state = std::sync::Mutex::new(ctrl_state);
         let hover_text: String = hover_text.into();
         let drag = DragValue::new(value)
             .speed(0.08)
             .custom_formatter(|n, _| format!("{}{:.2}", rep_char, n))
-            .custom_parser(
-                |s| str::parse::<f64>(s.trim_start_matches(rep_char)).ok(), //{
-                                                                            // Ok(v) => {
-                                                                            //     let mut guard = ctrl_state.lock().unwrap();
-                                                                            //     guard.raw_value = v;
-                                                                            //     dbg!("parse!");
-                                                                            //     Some(guard.mode.run_mode(guard.raw_value))
-                                                                            // }
-                                                                            // Err(_) => None,
-                                                                            // },
-            );
+            .custom_parser(|s| str::parse::<f64>(s.trim_start_matches(rep_char)).ok());
         let handle = self.add(drag);
         if handle.changed() {
             ctrl_state.raw_value = *value;
