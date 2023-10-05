@@ -300,9 +300,8 @@ fn mat4_ui<'a>(ui: &mut Ui, ui_state: &mut UiState, value: &mut Mat4) {
             }
         });
     });
-    ui.strong("High-level Controls");
     ui.separator();
-
+    ui.strong("High-level Controls");
     ui.horizontal(|ui| {
         let label = ui.label("Theta");
         let handle = ui
