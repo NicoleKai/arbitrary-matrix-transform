@@ -252,7 +252,10 @@ fn transform_ui(
             value.determinant() // value.x_axis.x * value.y_axis.y * value.z_axis.z
         ))
         .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
-        let handle = ui.add(Slider::new(&mut ui_state.theta, -6.28..=6.28));
+        let label = ui.label("Theta");
+        let handle = ui
+            .add(Slider::new(&mut ui_state.theta, -6.28..=6.28))
+            .labelled_by(label.id);
         if handle.changed() {
             for (_, state) in ui_state.ctrls_state.0.iter_mut() {
                 match state.mode {
