@@ -34,6 +34,11 @@
         # For `nix build` & `nix run`:
         defaultPackage = naersk'.buildPackage (lib.recursiveUpdate commonEnvironment {
           src = ./.;
+            postInstall = ''
+              # Working directory is set to bin/ when running from `nix run`, so we do something a little dirty here...
+              # TODO: fix this properly
+              ln -s ${./assets} $out/bin/assets
+          '';
         });
 
         devShell = pkgs.mkShell (lib.recursiveUpdate commonEnvironment {
