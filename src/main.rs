@@ -18,7 +18,7 @@ impl Into<CtrlId> for usize {
 #[derive(Hash, Clone, PartialEq, Eq, Debug)]
 struct CtrlId(usize);
 
-#[derive(Clone, Default, Debug, EnumIter, Eq, PartialEq)]
+#[derive(Clone, Default, Debug, EnumIter, Eq, PartialEq, strum::Display)]
 enum CtrlMode {
     #[default]
     Normal,
@@ -194,13 +194,6 @@ impl EguiExtras for Ui {
             .speed(0.04)
             .prefix(rep_seg)
             .fixed_decimals(2);
-        // .custom_formatter(|n, _| format!("{}{:.2}", rep_seg, n))
-        // .custom_parser(|s| {
-        //     // TODO: fix recompiling regex every time parser runs
-        //     let re = Regex::new(r"^(-[sct]|[sct])").unwrap();
-        //     let cut = re.replace(s, "");
-        //     str::parse::<f64>(cut.to_string().as_str()).ok()
-        // });
         let handle = self.add(drag);
         if handle.changed() {
             ctrl_state.is_changed = true;
@@ -211,47 +204,17 @@ impl EguiExtras for Ui {
         }
 
         handle.on_hover_text(hover_text).context_menu(|ui| {
-            if ui
-                .radio_value(&mut ctrl_state.mode, CtrlMode::Normal, "Normal")
-                .clicked()
-            {
-                ctrl_state.mode = CtrlMode::Normal;
-            }
-            if ui
-                .radio_value(&mut ctrl_state.mode, CtrlMode::Sin, "Sin")
-                .clicked()
-            {
-                ctrl_state.mode = CtrlMode::Sin;
-            }
-            if ui
-                .radio_value(&mut ctrl_state.mode, CtrlMode::NegSin, "NegSin")
-                .clicked()
-            {
-                ctrl_state.mode = CtrlMode::NegSin;
-            }
-            if ui
-                .radio_value(&mut ctrl_state.mode, CtrlMode::Cos, "Cos")
-                .clicked()
-            {
-                ctrl_state.mode = CtrlMode::Cos;
-            }
-            if ui
-                .radio_value(&mut ctrl_state.mode, CtrlMode::NegCos, "NegCos")
-                .clicked()
-            {
-                ctrl_state.mode = CtrlMode::NegCos;
-            }
-            if ui
-                .radio_value(&mut ctrl_state.mode, CtrlMode::Tan, "Tan")
-                .clicked()
-            {
-                ctrl_state.mode = CtrlMode::Tan;
-            }
-            if ui
-                .radio_value(&mut ctrl_state.mode, CtrlMode::NegTan, "NegTan")
-                .clicked()
-            {
-                ctrl_state.mode = CtrlMode::NegTan;
+            for possible_modes in CtrlMode::iter() {
+                if ui
+                    .radio_value(
+                        &mut ctrl_state.mode,
+                        possible_modes.clone(),
+                        possible_modes.to_string(),
+                    )
+                    .clicked()
+                {
+                    ctrl_state.mode = possible_modes;
+                }
             }
         });
         *sync_value = ctrl_state.value;
