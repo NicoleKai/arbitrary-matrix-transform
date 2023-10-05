@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{f32::consts::PI, sync::Arc};
 
 use bevy::{pbr::DirectionalLightShadowMap, prelude::*};
 use bevy_egui::{
@@ -84,6 +84,8 @@ struct CtrlState {
     value: f32,
 }
 
+const FOUR_PI: f32 = PI * 4.;
+
 #[derive(Debug, Default, Clone)]
 struct CtrlsState(std::collections::HashMap<CtrlId, CtrlState>);
 
@@ -149,13 +151,13 @@ fn setup(
         },
         Rotatable {
             transform: Transform::from_scale(Vec3::splat(10.))
-                .with_translation(Vec3::new(0., -10., 0.)),
+                .with_translation(Vec3::new(0., -10., -3.)),
         },
     ));
 }
 
 trait EguiExtras {
-    fn ext_drag(
+    fn matrix_drag(
         &mut self,
         id: impl Into<CtrlId>,
         s: &mut CtrlsState,
@@ -167,7 +169,7 @@ trait EguiExtras {
 
 impl EguiExtras for Ui {
     #[inline]
-    fn ext_drag(
+    fn matrix_drag(
         &mut self,
         id: impl Into<CtrlId>,
         s: &mut CtrlsState,
@@ -189,14 +191,16 @@ impl EguiExtras for Ui {
         let rep_seg = ctrl_state.mode.get_str();
         let hover_text: String = hover_text.into();
         let drag = DragValue::new(&mut ctrl_state.value)
-            .speed(0.08)
-            .custom_formatter(|n, _| format!("{}{:.2}", rep_seg, n))
-            .custom_parser(|s| {
-                // TODO: fix recompiling regex every time parser runs
-                let re = Regex::new(r"^(-[sct]|[sct])").unwrap();
-                let cut = re.replace(s, "");
-                str::parse::<f64>(cut.to_string().as_str()).ok()
-            });
+            .speed(0.04)
+            .prefix(rep_seg)
+            .fixed_decimals(2);
+        // .custom_formatter(|n, _| format!("{}{:.2}", rep_seg, n))
+        // .custom_parser(|s| {
+        //     // TODO: fix recompiling regex every time parser runs
+        //     let re = Regex::new(r"^(-[sct]|[sct])").unwrap();
+        //     let cut = re.replace(s, "");
+        //     str::parse::<f64>(cut.to_string().as_str()).ok()
+        // });
         let handle = self.add(drag);
         if handle.changed() {
             ctrl_state.is_changed = true;
@@ -273,31 +277,31 @@ fn transform_ui(
                 ui.end_row();
 
                 ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "X");
-                ui.ext_drag(0, s, &mut value.x_axis.x, 1.0, "Mat4: x_axis, Vec4: x");
-                ui.ext_drag(1, s, &mut value.x_axis.y, 0., "Mat4: x_axis, Vec4: y");
-                ui.ext_drag(2, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
-                ui.ext_drag(3, s, &mut value.w_axis.x, 0., "Mat4: w_axis, Vec4: x");
+                ui.matrix_drag(0, s, &mut value.x_axis.x, 1.0, "Mat4: x_axis, Vec4: x");
+                ui.matrix_drag(1, s, &mut value.x_axis.y, 0., "Mat4: x_axis, Vec4: y");
+                ui.matrix_drag(2, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
+                ui.matrix_drag(3, s, &mut value.w_axis.x, 0., "Mat4: w_axis, Vec4: x");
                 ui.end_row();
 
                 ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Y");
-                ui.ext_drag(4, s, &mut value.y_axis.x, 0., "Mat4: y_axis, Vec4: x");
-                ui.ext_drag(5, s, &mut value.y_axis.y, 1.0, "Mat4: y_axis, Vec4: y");
-                ui.ext_drag(6, s, &mut value.y_axis.z, 0., "Mat4: y_axis, Vec4: z");
-                ui.ext_drag(7, s, &mut value.w_axis.y, 0., "Mat4: w_axis, Vec4: y");
+                ui.matrix_drag(4, s, &mut value.y_axis.x, 0., "Mat4: y_axis, Vec4: x");
+                ui.matrix_drag(5, s, &mut value.y_axis.y, 1.0, "Mat4: y_axis, Vec4: y");
+                ui.matrix_drag(6, s, &mut value.y_axis.z, 0., "Mat4: y_axis, Vec4: z");
+                ui.matrix_drag(7, s, &mut value.w_axis.y, 0., "Mat4: w_axis, Vec4: y");
                 ui.end_row();
 
                 ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Z");
-                ui.ext_drag(8, s, &mut value.z_axis.x, 0., "Mat4: z_axis, Vec4: x");
-                ui.ext_drag(9, s, &mut value.z_axis.y, 0., "Mat4: z_axis, Vec4: y");
-                ui.ext_drag(10, s, &mut value.z_axis.z, 1.0, "Mat4: z_axis, Vec4: z");
-                ui.ext_drag(11, s, &mut value.w_axis.z, 0., "Mat4: w_axis, Vec4: z");
+                ui.matrix_drag(8, s, &mut value.z_axis.x, 0., "Mat4: z_axis, Vec4: x");
+                ui.matrix_drag(9, s, &mut value.z_axis.y, 0., "Mat4: z_axis, Vec4: y");
+                ui.matrix_drag(10, s, &mut value.z_axis.z, 1.0, "Mat4: z_axis, Vec4: z");
+                ui.matrix_drag(11, s, &mut value.w_axis.z, 0., "Mat4: w_axis, Vec4: z");
                 ui.end_row();
 
                 ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "W");
-                ui.ext_drag(12, s, &mut value.x_axis.w, 0., "Mat4: x_axis, Vec4: w");
-                ui.ext_drag(13, s, &mut value.y_axis.w, 0., "Mat4: y_axis, Vec4: w");
-                ui.ext_drag(14, s, &mut value.z_axis.w, 0., "Mat4: z_axis, Vec4: w");
-                ui.ext_drag(15, s, &mut value.w_axis.w, 1.0, "Mat4: w_axis, Vec4: w");
+                ui.matrix_drag(12, s, &mut value.x_axis.w, 0., "Mat4: x_axis, Vec4: w");
+                ui.matrix_drag(13, s, &mut value.y_axis.w, 0., "Mat4: y_axis, Vec4: w");
+                ui.matrix_drag(14, s, &mut value.z_axis.w, 0., "Mat4: z_axis, Vec4: w");
+                ui.matrix_drag(15, s, &mut value.w_axis.w, 1.0, "Mat4: w_axis, Vec4: w");
                 ui.end_row();
             });
         });
@@ -314,6 +318,8 @@ fn transform_ui(
         let handle = ui
             .add(Slider::new(&mut ui_state.theta, -6.28..=6.28))
             .labelled_by(label.id);
+        // let handle = ui.matrix_drag(, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
+        // let handle = DragValue::new(&mut ui_state.theta);
         if handle.changed() {
             for (_, state) in ui_state.ctrls_state.0.iter_mut() {
                 match state.mode {
