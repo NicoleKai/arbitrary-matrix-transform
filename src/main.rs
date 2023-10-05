@@ -300,8 +300,8 @@ fn mat4_ui<'a>(ui: &mut Ui, ui_state: &mut UiState, value: &mut Mat4) {
             }
         });
     });
-    ui.label(format!("Determinant: {}", value.determinant()))
-        .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
+    ui.strong("High-level Controls");
+    ui.separator();
 
     ui.horizontal(|ui| {
         let label = ui.label("Theta");
@@ -325,6 +325,10 @@ fn mat4_ui<'a>(ui: &mut Ui, ui_state: &mut UiState, value: &mut Mat4) {
             }
         }
     });
+    ui.strong("Info");
+    ui.separator();
+    ui.label(format!("Determinant: {}", value.determinant()))
+        .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
 }
 
 fn ui_loading(
