@@ -2,7 +2,7 @@ use std::{f64::consts::PI, sync::Arc};
 
 use bevy::{pbr::DirectionalLightShadowMap, prelude::*};
 use bevy_egui::{
-    egui::{self, Color32, DragValue, Slider, Ui},
+    egui::{self, DragValue, Ui},
     EguiContexts,
 };
 use strum::EnumIter;
@@ -114,9 +114,12 @@ struct UiState {
 
 // A dummy struct used for Query-ing the cube entity, for altering its transform.
 #[derive(Component)]
-struct Rotatable {
+struct Transformable {
     transform: Transform,
 }
+
+#[derive(Resource, Default)]
+struct AssetsLoading(Vec<HandleUntyped>);
 
 // Main entrypoint
 fn main() {
@@ -134,8 +137,10 @@ fn main() {
         .add_plugins(bevy_egui::EguiPlugin)
         // Systems (functions that are called at regular intervals)
         .add_systems(Startup, setup)
-        .add_systems(Update, transform_ui)
+        .add_systems(Update, ui_elements)
+        .add_systems(Update, ui_loading)
         // Resources (live data that can be accessed from any system)
+        .init_resource::<AssetsLoading>()
         .init_resource::<UiState>()
         .run(); // Event loop etc occurs here
 }
@@ -147,6 +152,7 @@ fn setup(
     // mut meshes: ResMut<Assets<Mesh>>,
     // mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
+    mut loading: ResMut<AssetsLoading>,
 ) {
     ambient_light.color = Color::WHITE;
     commands.spawn(Camera3dBundle {
@@ -158,13 +164,17 @@ fn setup(
         transform: Transform::from_translation(Vec3::ONE * 3.0),
         ..default()
     });
+
+    let foxy_handle = asset_server.load("Foxy.gltf#Scene0");
+    loading.0.push(foxy_handle.clone_untyped());
+
     commands.spawn((
         SceneBundle {
-            scene: asset_server.load("Foxy.gltf#Scene0"),
+            scene: foxy_handle,
             transform: Transform::default(),
             ..default()
         },
-        Rotatable {
+        Transformable {
             transform: Transform::from_scale(Vec3::splat(10.))
                 .with_translation(Vec3::new(0., -10., -3.)),
         },
@@ -236,95 +246,116 @@ impl EguiExtras for Ui {
     }
 }
 
-// This is where the transform happens
-fn transform_ui(
-    mut foxies: Query<(&mut Transform, &Rotatable)>,
-    mut ui_state: ResMut<UiState>,
-    mut ctx: EguiContexts,
-    mut ambient_light: ResMut<AmbientLight>,
-) {
-    #[inline]
-    fn mat4_ui<'a>(ui: &mut Ui, ui_state: &mut UiState, value: &mut Mat4) {
-        let s = &mut ui_state.ctrls_state;
-        ui.strong("Direct Matrix Control");
-        ui.group(|ui| {
-            egui::Grid::new("mat4_grid").show(ui, |ui| {
-                ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "row");
-                ui.colored_label(egui::Color32::GREEN, "i-hat");
-                ui.colored_label(egui::Color32::RED, "j-hat");
-                ui.colored_label(egui::Color32::from_rgb(0, 128, 128), "k-hat");
-                ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "trans");
-                ui.end_row();
+#[inline]
+fn mat4_ui<'a>(ui: &mut Ui, ui_state: &mut UiState, value: &mut Mat4) {
+    let s = &mut ui_state.ctrls_state;
+    ui.strong("Direct Matrix Control");
+    ui.group(|ui| {
+        egui::Grid::new("mat4_grid").show(ui, |ui| {
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "row");
+            ui.colored_label(egui::Color32::GREEN, "i-hat");
+            ui.colored_label(egui::Color32::RED, "j-hat");
+            ui.colored_label(egui::Color32::from_rgb(0, 128, 128), "k-hat");
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "trans");
+            ui.end_row();
 
-                ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "X");
-                ui.matrix_drag(0, s, &mut value.x_axis.x, 1.0, "Mat4: x_axis, Vec4: x");
-                ui.matrix_drag(1, s, &mut value.x_axis.y, 0., "Mat4: x_axis, Vec4: y");
-                ui.matrix_drag(2, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
-                ui.matrix_drag(3, s, &mut value.w_axis.x, 0., "Mat4: w_axis, Vec4: x");
-                ui.end_row();
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "X");
+            ui.matrix_drag(0, s, &mut value.x_axis.x, 1.0, "Mat4: x_axis, Vec4: x");
+            ui.matrix_drag(1, s, &mut value.x_axis.y, 0., "Mat4: x_axis, Vec4: y");
+            ui.matrix_drag(2, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
+            ui.matrix_drag(3, s, &mut value.w_axis.x, 0., "Mat4: w_axis, Vec4: x");
+            ui.end_row();
 
-                ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Y");
-                ui.matrix_drag(4, s, &mut value.y_axis.x, 0., "Mat4: y_axis, Vec4: x");
-                ui.matrix_drag(5, s, &mut value.y_axis.y, 1.0, "Mat4: y_axis, Vec4: y");
-                ui.matrix_drag(6, s, &mut value.y_axis.z, 0., "Mat4: y_axis, Vec4: z");
-                ui.matrix_drag(7, s, &mut value.w_axis.y, 0., "Mat4: w_axis, Vec4: y");
-                ui.end_row();
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Y");
+            ui.matrix_drag(4, s, &mut value.y_axis.x, 0., "Mat4: y_axis, Vec4: x");
+            ui.matrix_drag(5, s, &mut value.y_axis.y, 1.0, "Mat4: y_axis, Vec4: y");
+            ui.matrix_drag(6, s, &mut value.y_axis.z, 0., "Mat4: y_axis, Vec4: z");
+            ui.matrix_drag(7, s, &mut value.w_axis.y, 0., "Mat4: w_axis, Vec4: y");
+            ui.end_row();
 
-                ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Z");
-                ui.matrix_drag(8, s, &mut value.z_axis.x, 0., "Mat4: z_axis, Vec4: x");
-                ui.matrix_drag(9, s, &mut value.z_axis.y, 0., "Mat4: z_axis, Vec4: y");
-                ui.matrix_drag(10, s, &mut value.z_axis.z, 1.0, "Mat4: z_axis, Vec4: z");
-                ui.matrix_drag(11, s, &mut value.w_axis.z, 0., "Mat4: w_axis, Vec4: z");
-                ui.end_row();
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "Z");
+            ui.matrix_drag(8, s, &mut value.z_axis.x, 0., "Mat4: z_axis, Vec4: x");
+            ui.matrix_drag(9, s, &mut value.z_axis.y, 0., "Mat4: z_axis, Vec4: y");
+            ui.matrix_drag(10, s, &mut value.z_axis.z, 1.0, "Mat4: z_axis, Vec4: z");
+            ui.matrix_drag(11, s, &mut value.w_axis.z, 0., "Mat4: w_axis, Vec4: z");
+            ui.end_row();
 
-                ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "W");
-                ui.matrix_drag(12, s, &mut value.x_axis.w, 0., "Mat4: x_axis, Vec4: w");
-                ui.matrix_drag(13, s, &mut value.y_axis.w, 0., "Mat4: y_axis, Vec4: w");
-                ui.matrix_drag(14, s, &mut value.z_axis.w, 0., "Mat4: z_axis, Vec4: w");
-                ui.matrix_drag(15, s, &mut value.w_axis.w, 1.0, "Mat4: w_axis, Vec4: w");
-                ui.end_row();
-            });
-            ui.separator();
-            ui.horizontal(|ui| {
-                if ui.button("Reset All").clicked() {
-                    *s = CtrlsState::default();
-                }
-                if ui.button("Reset Matrix Values").clicked() {
-                    s.reset_values();
-                }
-                if ui.button("Reset Mode Selections").clicked() {
-                    s.reset_modes();
-                }
-            });
+            ui.colored_label(egui::Color32::from_rgb(128, 128, 64), "W");
+            ui.matrix_drag(12, s, &mut value.x_axis.w, 0., "Mat4: x_axis, Vec4: w");
+            ui.matrix_drag(13, s, &mut value.y_axis.w, 0., "Mat4: y_axis, Vec4: w");
+            ui.matrix_drag(14, s, &mut value.z_axis.w, 0., "Mat4: z_axis, Vec4: w");
+            ui.matrix_drag(15, s, &mut value.w_axis.w, 1.0, "Mat4: w_axis, Vec4: w");
+            ui.end_row();
         });
-        ui.label(format!("Determinant: {}", value.determinant()))
-            .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
-
+        ui.separator();
         ui.horizontal(|ui| {
-            let label = ui.label("Theta");
-            let handle = ui
-                .add(
-                    DragValue::new(&mut ui_state.theta)
-                        .speed(0.01)
-                        .clamp_range(-FOUR_PI..=FOUR_PI),
-                )
-                .labelled_by(label.id);
-            // let handle = ui.matrix_drag(, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
-            if handle.changed() {
-                for (_, state) in ui_state.ctrls_state.0.iter_mut() {
-                    match state.mode {
-                        CtrlMode::Normal => {}
-                        _ => {
-                            state.value = ui_state.theta;
-                            state.is_changed = true;
-                        }
+            if ui.button("Reset All").clicked() {
+                *s = CtrlsState::default();
+            }
+            if ui.button("Reset Matrix Values").clicked() {
+                s.reset_values();
+            }
+            if ui.button("Reset Mode Selections").clicked() {
+                s.reset_modes();
+            }
+        });
+    });
+    ui.label(format!("Determinant: {}", value.determinant()))
+        .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
+
+    ui.horizontal(|ui| {
+        let label = ui.label("Theta");
+        let handle = ui
+            .add(
+                DragValue::new(&mut ui_state.theta)
+                    .speed(0.01)
+                    .clamp_range(-FOUR_PI..=FOUR_PI),
+            )
+            .labelled_by(label.id);
+        // let handle = ui.matrix_drag(, s, &mut value.x_axis.z, 0., "Mat4: x_axis, Vec4: z");
+        if handle.changed() {
+            for (_, state) in ui_state.ctrls_state.0.iter_mut() {
+                match state.mode {
+                    CtrlMode::Normal => {}
+                    _ => {
+                        state.value = ui_state.theta;
+                        state.is_changed = true;
                     }
+                }
+            }
+        }
+    });
+}
+
+fn ui_loading(
+    mut commands: Commands,
+    mut ctx: EguiContexts,
+    server: Res<AssetServer>,
+    loading: Option<Res<AssetsLoading>>,
+) {
+    if let Some(loading) = loading {
+        egui::Window::new("Loading").show(ctx.ctx_mut(), |ui| {
+            match server.get_group_load_state(loading.0.iter().map(|h| h.id())) {
+                bevy::asset::LoadState::Loaded => {
+                    commands.remove_resource::<AssetsLoading>();
+                }
+                _ => {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Spinner::new());
+                        ui.label("Still loading assets...");
+                    });
                 }
             }
         });
     }
+}
 
-    // The floating EGUI window
+fn ui_elements(
+    mut transformable: Query<(&mut Transform, &Transformable)>,
+    mut ui_state: ResMut<UiState>,
+    mut ctx: EguiContexts,
+    mut ambient_light: ResMut<AmbientLight>,
+) {
     egui::Window::new("Controls").show(ctx.ctx_mut(), |ui| {
         // Sliders are added here, passed mutable access to the variables storing their states
         // Moooooom. The borrow checker is bullying me Y~Y
@@ -341,8 +372,7 @@ fn transform_ui(
         });
     });
 
-    for (mut transform, foxy) in &mut foxies {
-        *transform = foxy.transform * Transform::from_matrix(ui_state.mat_transform);
-        // transform.scale = Vec3::ONE * 10.0;
+    for (mut transform, transformable) in &mut transformable {
+        *transform = transformable.transform * Transform::from_matrix(ui_state.mat_transform);
     }
 }
