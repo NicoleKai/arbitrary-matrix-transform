@@ -5,6 +5,7 @@ use bevy_egui::{
     egui::{self, Color32, DragValue, Slider, Ui},
     EguiContexts,
 };
+use regex::Regex;
 use strum::EnumIter;
 use strum::IntoEnumIterator;
 
@@ -177,17 +178,10 @@ impl EguiExtras for Ui {
             .speed(0.08)
             .custom_formatter(|n, _| format!("{}{:.2}", rep_seg, n))
             .custom_parser(|s| {
-                let cut = match &s[..2] {
-                    "s" => &s[1..],
-                    "-s" => &s[2..],
-                    "c" => &s[1..],
-                    "-c" => &s[2..],
-                    "t" => &s[1..],
-                    "-t" => &s[2..],
-                    _ => &s,
-                };
-                dbg!(&cut);
-                str::parse::<f64>(cut).ok()
+                // TODO: fix recompiling regex every time parser runs
+                let re = Regex::new(r"^(-[sct]|[sct])").unwrap();
+                let cut = re.replace(s, "");
+                str::parse::<f64>(cut.to_string().as_str()).ok()
             });
         let handle = self.add(drag);
         if handle.changed() {
