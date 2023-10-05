@@ -168,7 +168,7 @@ fn main() {
         .add_plugins(bevy_egui::EguiPlugin)
         // Systems (functions that are called at regular intervals)
         .add_systems(Startup, setup)
-        .add_systems(Update, ui_elements)
+        .add_systems(Update, ui_control)
         .add_systems(Update, ui_loading)
         .add_systems(Update, ui_status)
         // Resources (live data that can be accessed from any system)
@@ -440,27 +440,29 @@ fn ui_status(
         ui.label(format!("FPS: {:.2}", status.last_fps));
     });
 }
-fn ui_elements(
+fn ui_control(
     mut transformable: Query<(&mut Transform, &Transformable)>,
     mut ui_state: ResMut<UiState>,
     mut ctx: EguiContexts,
     mut ambient_light: ResMut<AmbientLight>,
 ) {
-    egui::Window::new("Controls").show(ctx.ctx_mut(), |ui| {
-        // Sliders are added here, passed mutable access to the variables storing their states
-        // Moooooom. The borrow checker is bullying me Y~Y
-        let mut cloned_ui_mat = ui_state.mat_transform;
-        mat4_ui(ui, &mut ui_state, &mut cloned_ui_mat);
-        ui_state.mat_transform = cloned_ui_mat;
-        ambient_light.brightness = ui_state.ambient_brightness;
-        ui.separator();
-        ui.strong("Display Settings");
-        ui.horizontal(|ui| {
-            let label = ui.label("Ambient Brightness:");
-            ui.add(DragValue::new(&mut ui_state.ambient_brightness).speed(0.001))
-                .labelled_by(label.id);
+    egui::Window::new("Controls")
+        .resize(|r| r.default_size(bevy_egui::egui::Vec2::ZERO))
+        .show(ctx.ctx_mut(), |ui| {
+            // Sliders are added here, passed mutable access to the variables storing their states
+            // Moooooom. The borrow checker is bullying me Y~Y
+            let mut cloned_ui_mat = ui_state.mat_transform;
+            mat4_ui(ui, &mut ui_state, &mut cloned_ui_mat);
+            ui_state.mat_transform = cloned_ui_mat;
+            ambient_light.brightness = ui_state.ambient_brightness;
+            ui.separator();
+            ui.strong("Display Settings");
+            ui.horizontal(|ui| {
+                let label = ui.label("Ambient Brightness:");
+                ui.add(DragValue::new(&mut ui_state.ambient_brightness).speed(0.001))
+                    .labelled_by(label.id);
+            });
         });
-    });
 
     for (mut transform, transformable) in &mut transformable {
         *transform = transformable.transform * Transform::from_matrix(ui_state.mat_transform);
