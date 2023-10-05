@@ -98,7 +98,9 @@ struct UiState {
 
 // A dummy struct used for Query-ing the cube entity, for altering its transform.
 #[derive(Component)]
-struct RotateFlag;
+struct Rotatable {
+    transform: Transform,
+}
 
 // Main entrypoint
 fn main() {
@@ -142,10 +144,12 @@ fn setup(
     commands.spawn((
         SceneBundle {
             scene: asset_server.load("Foxy.gltf#Scene0"),
-            transform: Transform::from_scale(Vec3::splat(10.)),
+            transform: Transform::default(),
             ..default()
         },
-        RotateFlag {},
+        Rotatable {
+            transform: Transform::from_scale(Vec3::splat(10.)),
+        },
     ));
 }
 
@@ -251,7 +255,7 @@ impl EguiExtras for Ui {
 
 // This is where the transform happens
 fn transform_ui(
-    mut foxies: Query<(&mut Transform, &RotateFlag)>,
+    mut foxies: Query<(&mut Transform, &Rotatable)>,
     mut ui_state: ResMut<UiState>,
     mut ctx: EguiContexts,
 ) {
@@ -335,8 +339,8 @@ fn transform_ui(
         ui_state.mat_transform = cloned_ui_mat;
     });
 
-    for (mut transform, _foxy) in &mut foxies {
-        *transform = Transform::from_matrix(ui_state.mat_transform);
+    for (mut transform, foxy) in &mut foxies {
+        *transform = foxy.transform * Transform::from_matrix(ui_state.mat_transform);
         // transform.scale = Vec3::ONE * 10.0;
     }
 }
