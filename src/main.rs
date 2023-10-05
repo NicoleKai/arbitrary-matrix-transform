@@ -55,11 +55,11 @@ impl CtrlMode {
         match self {
             CtrlMode::Normal => v,
             CtrlMode::Sin => v.sin(),
-            CtrlMode::NegSin => (-v.abs()).sin(),
+            CtrlMode::NegSin => (-(v.abs())).sin(),
             CtrlMode::Cos => v.cos(),
-            CtrlMode::NegCos => (-v.abs()).cos(),
+            CtrlMode::NegCos => (-(v.abs())).cos(),
             CtrlMode::Tan => v.tan(),
-            CtrlMode::NegTan => (-v.abs()).tan(),
+            CtrlMode::NegTan => (-(v.abs())).tan(),
         }
     }
 
