@@ -63,24 +63,31 @@ impl CtrlMode {
         }
     }
 
-    fn toggle(&mut self) {
-        let first = Self::iter().next().expect("Could not get first value!");
+    // fn toggle(&mut self) {
+    //     let first = Self::iter().next().expect("Could not get first value!");
 
-        let next = Self::iter()
-            .skip_while(|x| *self != *x)
-            .skip(1)
-            .next()
-            .unwrap_or(first);
-        dbg!(&next);
-        *self = next;
-    }
+    //     let next = Self::iter()
+    //         .skip_while(|x| *self != *x)
+    //         .skip(1)
+    //         .next()
+    //         .unwrap_or(first);
+    //     dbg!(&next);
+    //     *self = next;
+    // }
 }
 
 #[derive(Debug, Clone, Default)]
 struct CtrlState {
     is_changed: bool,
     mode: CtrlMode,
+    default_value: f32,
     value: f32,
+}
+
+impl CtrlState {
+    fn reset_value(&mut self) {
+        self.value = self.default_value;
+    }
 }
 
 const FOUR_PI: f64 = PI * 4.;
@@ -97,7 +104,7 @@ impl CtrlsState {
 
     fn reset_values(&mut self) {
         for (_id, state) in self.0.iter_mut() {
-            state.value = 0.;
+            state.reset_value();
         }
     }
 }
@@ -208,6 +215,7 @@ impl EguiExtras for Ui {
                 id.clone(),
                 CtrlState {
                     value: default_value,
+                    default_value,
                     ..Default::default()
                 },
             );
