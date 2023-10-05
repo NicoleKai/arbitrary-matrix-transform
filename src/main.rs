@@ -116,12 +116,24 @@ impl CtrlsState {
 
 // This struct stores the values for the sliders, so that they persist between frames
 // As EGUI is immediate mode, we have to maintain the state of the GUI ourselves
-#[derive(Resource, Default, Clone)]
+#[derive(Resource, Clone)]
 struct UiState {
     mat_transform: Mat4,
     ctrls_state: CtrlsState,
     theta: f32,
     ambient_brightness: f32,
+}
+
+impl Default for UiState {
+    fn default() -> Self {
+        Self {
+            ambient_brightness: 0.25,
+            // trying to do ..default() would cause a stack overflow here ;)
+            mat_transform: default(),
+            ctrls_state: default(),
+            theta: default(),
+        }
+    }
 }
 
 // A dummy struct used for Query-ing the cube entity, for altering its transform.
@@ -297,6 +309,7 @@ impl EguiExtras for Ui {
                     .clicked()
                 {
                     ctrl_state.mode = possible_modes;
+                    ui.close_menu();
                 }
             }
         });
