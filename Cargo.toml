@@ -1,5 +1,5 @@
 [package]
-name = "robotics-kinematics-quaternion-demo"
+name = "arbitrary-matrix-transform"
 version = "0.1.0"
 edition = "2021"
 

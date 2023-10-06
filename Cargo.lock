@@ -201,6 +201,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "arbitrary-matrix-transform"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_egui",
+ "strum",
+]
+
+[[package]]
 name = "arboard"
 version = "3.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2895,15 +2904,6 @@ name = "renderdoc-sys"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "216080ab382b992234dda86873c18d4c48358f5cfcb70fd693d7f6f2131b628b"
-
-[[package]]
-name = "robotics-kinematics-quaternion-demo"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy_egui",
- "strum",
-]
 
 [[package]]
 name = "rodio"
