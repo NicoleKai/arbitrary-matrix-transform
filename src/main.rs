@@ -4,7 +4,7 @@ use bevy::{
     core::FrameCount,
     diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin},
     pbr::DirectionalLightShadowMap,
-    prelude::*,
+    prelude::{IntoSystem, *},
 };
 use bevy_egui::{
     egui::{self, DragValue, Ui},
@@ -125,6 +125,23 @@ struct UiState {
     ambient_brightness: f32,
 }
 
+#[derive(Resource, Clone)]
+struct WndState {
+    is_open_help_wnd: bool,
+    is_open_ctrl_wnd: bool,
+    is_open_status_wnd: bool,
+}
+
+impl Default for WndState {
+    fn default() -> Self {
+        Self {
+            is_open_help_wnd: true,
+            is_open_ctrl_wnd: true,
+            is_open_status_wnd: true,
+        }
+    }
+}
+
 impl Default for UiState {
     fn default() -> Self {
         Self {
@@ -166,18 +183,35 @@ fn main() {
             }),
             ..Default::default()
         }))
+        // Resources (live data that can be accessed from any system)
+        .init_resource::<AssetsLoading>()
+        .init_resource::<UiState>()
+        .init_resource::<WndState>()
+        .init_resource::<PgmStatus>()
         .insert_resource(DirectionalLightShadowMap { size: 4096 })
         .add_plugins(bevy_egui::EguiPlugin)
         // Systems (functions that are called at regular intervals)
         .add_systems(Startup, setup)
-        .add_systems(Update, ui_control)
-        .add_systems(Update, ui_loading)
-        .add_systems(Update, ui_status)
+        .add_systems(Update, window_view)
+        .add_systems(
+            Update,
+            window_help.run_if(IntoSystem::into_system(|wnd_state: Res<WndState>| {
+                wnd_state.is_open_help_wnd == true
+            })),
+        )
+        .add_systems(
+            Update,
+            window_ctrl.run_if(IntoSystem::into_system(|wnd_state: Res<WndState>| {
+                wnd_state.is_open_ctrl_wnd == true
+            })),
+        )
+        .add_systems(
+            Update,
+            ui_status.run_if(IntoSystem::into_system(|wnd_state: Res<WndState>| {
+                wnd_state.is_open_status_wnd == true
+            })),
+        )
         .add_systems(Update, keyboard_input)
-        // Resources (live data that can be accessed from any system)
-        .init_resource::<AssetsLoading>()
-        .init_resource::<UiState>()
-        .init_resource::<PgmStatus>()
         .run(); // Event loop etc occurs here
 }
 
@@ -217,8 +251,6 @@ impl NewMesh for Mesh {
 fn setup(
     mut commands: Commands,
     mut ambient_light: ResMut<AmbientLight>,
-    // mut meshes: ResMut<Assets<Mesh>>,
-    // mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
     mut loading: ResMut<AssetsLoading>,
 ) {
@@ -402,35 +434,17 @@ fn mat4_ui<'a>(ui: &mut Ui, ui_state: &mut UiState, value: &mut Mat4) {
         .on_hover_text("The change in volume applied by this transform (ignoring w_axis).");
 }
 
-fn ui_loading(
-    mut commands: Commands,
-    mut ctx: EguiContexts,
-    server: Res<AssetServer>,
-    loading: Option<Res<AssetsLoading>>,
-) {
-    if let Some(loading) = loading {
-        egui::Window::new("Loading").show(ctx.ctx_mut(), |ui| {
-            match server.get_group_load_state(loading.0.iter().map(|h| h.id())) {
-                bevy::asset::LoadState::Loaded => {
-                    commands.remove_resource::<AssetsLoading>();
-                }
-                _ => {
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Spinner::new());
-                        ui.label("Still loading assets...");
-                    });
-                }
-            }
-        });
-    }
-}
-
 fn ui_status(
     mut ctx: EguiContexts,
     time: Res<Time>,
     frame_count: Res<FrameCount>,
+    egui_settings: Res<EguiSettings>,
     mut status: ResMut<PgmStatus>,
     // mut ui_state: ResMut<UiState>,
+    loading: Option<Res<AssetsLoading>>,
+    server: Res<AssetServer>,
+    mut wnd_state: ResMut<WndState>,
+    mut commands: Commands, // mut ui_state: ResMut<UiState>,
 ) {
     let delta_frame_count = frame_count.0 - status.last_frame_count;
     status.last_frame_count = frame_count.0;
@@ -440,39 +454,73 @@ fn ui_status(
         let fps = delta_frame_count as f64 / t;
         status.last_fps = fps;
     }
-    egui::Window::new("Status").show(ctx.ctx_mut(), |ui| {
-        ui.label(format!("FPS: {:.2}", status.last_fps));
-        // if ui
-        //     .add(
-        //         DragValue::new(&mut ui_state.scale)
-        //             .clamp_range(1.0..=3.0)
-        //             .speed(0.01),
-        //     )
-        //     .changed()
-        // {}
-    });
+    egui::Window::new("Status")
+        .open(&mut wnd_state.is_open_status_wnd)
+        .resize(|r| r.default_size(bevy_egui::egui::Vec2::ZERO))
+        .show(ctx.ctx_mut(), |ui| {
+            ui.label(format!("FPS: {:.2}", status.last_fps));
+            ui.separator();
+
+            ui.label(format!("Scale factor: {:.2}", egui_settings.scale_factor));
+            if let Some(loading) = loading {
+                ui.separator();
+                match server.get_group_load_state(loading.0.iter().map(|h| h.id())) {
+                    bevy::asset::LoadState::Loaded => {
+                        commands.remove_resource::<AssetsLoading>();
+                    }
+                    _ => {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::Spinner::new());
+                            ui.label("Still loading assets...");
+                        });
+                    }
+                }
+            }
+        });
 }
 
 fn keyboard_input(keys: Res<Input<KeyCode>>, mut egui_settings: ResMut<EguiSettings>) {
-    if keys.any_just_pressed([KeyCode::Equals, KeyCode::Plus]) {
-        egui_settings.scale_factor = (egui_settings.scale_factor + 0.1).clamp(1.0, 3.0);
-    }
-
-    if keys.any_just_pressed([KeyCode::Minus]) {
-        egui_settings.scale_factor = (egui_settings.scale_factor - 0.1).clamp(1.0, 3.0);
+    if keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
+        if keys.any_just_pressed([KeyCode::Equals, KeyCode::Plus]) {
+            egui_settings.scale_factor = (egui_settings.scale_factor + 0.2).clamp(0.5, 3.5);
+        }
+        if keys.any_just_pressed([KeyCode::Key0, KeyCode::Numpad0]) {
+            egui_settings.scale_factor = 1.2;
+        }
+        if keys.any_just_pressed([KeyCode::Minus]) {
+            egui_settings.scale_factor = (egui_settings.scale_factor - 0.2).clamp(0.5, 3.5);
+        }
     }
 }
 
-fn ui_control(
+fn window_help(mut ctx: EguiContexts, mut wnd_state: ResMut<WndState>) {
+    egui::Window::new("Help")
+        .open(&mut wnd_state.is_open_help_wnd)
+        .show(ctx.ctx_mut(), |ui| {
+            ui.label("Ctrl+Plus to increase UI size.");
+            ui.label("Ctrl+Minus to decrease UI size.");
+        });
+}
+
+fn window_view(mut wnd_state: ResMut<WndState>, mut ctx: EguiContexts) {
+    egui::Window::new("View").show(ctx.ctx_mut(), |ui| {
+        ui.checkbox(&mut wnd_state.is_open_help_wnd, "Show Help Window");
+        ui.checkbox(&mut wnd_state.is_open_ctrl_wnd, "Show Control Window");
+        ui.checkbox(&mut wnd_state.is_open_status_wnd, "Show Status Window");
+    });
+}
+
+fn window_ctrl(
     mut transformable: Query<(&mut Transform, &Transformable)>,
     mut ui_state: ResMut<UiState>,
+    mut wnd_state: ResMut<WndState>,
     mut ctx: EguiContexts,
     mut ambient_light: ResMut<AmbientLight>,
 ) {
     egui::Window::new("Controls")
+        .open(&mut wnd_state.is_open_ctrl_wnd)
         .resize(|r| r.default_size(bevy_egui::egui::Vec2::ZERO))
         .show(ctx.ctx_mut(), |ui| {
-            // Sliders are added here, passed mutable access to the variables storing their states
             // Moooooom. The borrow checker is bullying me Y~Y
             let mut cloned_ui_mat = ui_state.mat_transform;
             mat4_ui(ui, &mut ui_state, &mut cloned_ui_mat);
